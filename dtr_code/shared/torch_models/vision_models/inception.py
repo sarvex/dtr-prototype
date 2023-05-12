@@ -40,25 +40,24 @@ def inception_v3(pretrained=False, progress=True, **kwargs):
         transform_input (bool): If True, preprocesses the input according to the method with which it
             was trained on ImageNet. Default: *False*
     """
-    if pretrained:
-        if 'transform_input' not in kwargs:
-            kwargs['transform_input'] = True
-        if 'aux_logits' in kwargs:
-            original_aux_logits = kwargs['aux_logits']
-            kwargs['aux_logits'] = True
-        else:
-            original_aux_logits = True
-        kwargs['init_weights'] = False  # we are loading weights from a pretrained model
-        model = Inception3(**kwargs)
-        state_dict = load_state_dict_from_url(model_urls['inception_v3_google'],
-                                              progress=progress)
-        model.load_state_dict(state_dict)
-        if not original_aux_logits:
-            model.aux_logits = False
-            del model.AuxLogits
-        return model
-
-    return Inception3(**kwargs)
+    if not pretrained:
+        return Inception3(**kwargs)
+    if 'transform_input' not in kwargs:
+        kwargs['transform_input'] = True
+    if 'aux_logits' in kwargs:
+        original_aux_logits = kwargs['aux_logits']
+        kwargs['aux_logits'] = True
+    else:
+        original_aux_logits = True
+    kwargs['init_weights'] = False  # we are loading weights from a pretrained model
+    model = Inception3(**kwargs)
+    state_dict = load_state_dict_from_url(model_urls['inception_v3_google'],
+                                          progress=progress)
+    model.load_state_dict(state_dict)
+    if not original_aux_logits:
+        model.aux_logits = False
+        del model.AuxLogits
+    return model
 
 
 class Inception3(nn.Module):
@@ -112,7 +111,7 @@ class Inception3(nn.Module):
         self.fc = nn.Linear(2048, num_classes)
         if init_weights:
             for m in self.modules():
-                if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
+                if isinstance(m, (nn.Conv2d, nn.Linear)):
                     import scipy.stats as stats
                     stddev = m.stddev if hasattr(m, 'stddev') else 0.1
                     X = stats.truncnorm(-2, 2, scale=stddev)
@@ -165,10 +164,7 @@ class Inception3(nn.Module):
         x = self.Mixed_6e(x)
         # N x 768 x 17 x 17
         aux_defined = self.training and self.aux_logits
-        if aux_defined:
-            aux = self.AuxLogits(x)
-        else:
-            aux = None
+        aux = self.AuxLogits(x) if aux_defined else None
         # N x 768 x 17 x 17
         x = self.Mixed_7a(x)
         # N x 1280 x 8 x 8
@@ -190,21 +186,17 @@ class Inception3(nn.Module):
     @torch.jit.unused
     def eager_outputs(self, x, aux):
         # type: (Tensor, Optional[Tensor]) -> InceptionOutputs
-        if self.training and self.aux_logits:
-            return InceptionOutputs(x, aux)
-        else:
-            return x
+        return InceptionOutputs(x, aux) if self.training and self.aux_logits else x
 
     def forward(self, x):
         x = self._transform_input(x)
         x, aux = self._forward(x)
         aux_defined = self.training and self.aux_logits
-        if torch.jit.is_scripting():
-            if not aux_defined:
-                warnings.warn("Scripted Inception3 always returns Inception3 Tuple")
-            return InceptionOutputs(x, aux)
-        else:
+        if not torch.jit.is_scripting():
             return self.eager_outputs(x, aux)
+        if not aux_defined:
+            warnings.warn("Scripted Inception3 always returns Inception3 Tuple")
+        return InceptionOutputs(x, aux)
 
 
 class InceptionA(nn.Module):
@@ -237,8 +229,7 @@ class InceptionA(nn.Module):
         branch_pool = F.avg_pool2d(x, kernel_size=3, stride=1, padding=1)
         branch_pool = self.branch_pool(branch_pool)
 
-        outputs = [branch1x1, branch5x5, branch3x3dbl, branch_pool]
-        return outputs
+        return [branch1x1, branch5x5, branch3x3dbl, branch_pool]
 
     def forward(self, x):
         outputs = self._forward(x)
@@ -266,8 +257,7 @@ class InceptionB(nn.Module):
 
         branch_pool = F.max_pool2d(x, kernel_size=3, stride=2)
 
-        outputs = [branch3x3, branch3x3dbl, branch_pool]
-        return outputs
+        return [branch3x3, branch3x3dbl, branch_pool]
 
     def forward(self, x):
         outputs = self._forward(x)
@@ -311,8 +301,7 @@ class InceptionC(nn.Module):
         branch_pool = F.avg_pool2d(x, kernel_size=3, stride=1, padding=1)
         branch_pool = self.branch_pool(branch_pool)
 
-        outputs = [branch1x1, branch7x7, branch7x7dbl, branch_pool]
-        return outputs
+        return [branch1x1, branch7x7, branch7x7dbl, branch_pool]
 
     def forward(self, x):
         outputs = self._forward(x)
@@ -343,8 +332,7 @@ class InceptionD(nn.Module):
         branch7x7x3 = self.branch7x7x3_4(branch7x7x3)
 
         branch_pool = F.max_pool2d(x, kernel_size=3, stride=2)
-        outputs = [branch3x3, branch7x7x3, branch_pool]
-        return outputs
+        return [branch3x3, branch7x7x3, branch_pool]
 
     def forward(self, x):
         outputs = self._forward(x)
@@ -391,8 +379,7 @@ class InceptionE(nn.Module):
         branch_pool = F.avg_pool2d(x, kernel_size=3, stride=1, padding=1)
         branch_pool = self.branch_pool(branch_pool)
 
-        outputs = [branch1x1, branch3x3, branch3x3dbl, branch_pool]
-        return outputs
+        return [branch1x1, branch3x3, branch3x3dbl, branch_pool]
 
     def forward(self, x):
         outputs = self._forward(x)

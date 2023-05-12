@@ -24,7 +24,7 @@ class RuntimeV1(TelemetrizedRuntimeBase):
     return s in self.storage_pool
 
   def _make_evictable(self, s : Storage) -> bool:
-    assert s.ref_int == 0, 'tried to make locked Storage evictable {}'.format(s)
+    assert s.ref_int == 0, f'tried to make locked Storage evictable {s}'
     if s in self.storage_pool:
       return False
     self.storage_pool.append(s)
@@ -37,7 +37,7 @@ class RuntimeV1(TelemetrizedRuntimeBase):
     return True
 
   def _evict(self, s : Storage):
-    assert s.ref_int == 0, 'tried to evict locked Storage {}'.format(s)
+    assert s.ref_int == 0, f'tried to evict locked Storage {s}'
     s.material = False
     self.memory_usage -= s.size
     self._make_unevictable(s)
@@ -67,13 +67,13 @@ class RuntimeV1(TelemetrizedRuntimeBase):
     Locks `s`, which must be material, preventing it from being evicted while
     any lock is held.
     """
-    assert s.material, 'cannot lock evicted Storage {}'.format(s)
-    assert not s.meta['banished'], 'cannot lock banished Storage {}'.format(s)
+    assert s.material, f'cannot lock evicted Storage {s}'
+    assert not s.meta['banished'], f'cannot lock banished Storage {s}'
     if s.ref_int == 0:
       succ = self._make_unevictable(s)
-      assert succ, 'unevictable Storage that is not locked {}'.format(s)
+      assert succ, f'unevictable Storage that is not locked {s}'
     s.ref_int += 1
-    assert not self._evictable(s), 'evictable Storage after lock {}'.format(s)
+    assert not self._evictable(s), f'evictable Storage after lock {s}'
     self._T_lock(s)
 
   def _unlock(self, s : Storage):
@@ -82,33 +82,32 @@ class RuntimeV1(TelemetrizedRuntimeBase):
     (i.e. s.ref_int == 0 after), then s is put back in the pool. Note that
     pinned Storages are permanently locked.
     """
-    assert s.material, 'cannot unlock evicted Storage {}'.format(s)
-    assert s.ref_int > 0, 'cannot unlock Storage with no locks {}'.format(s)
+    assert s.material, f'cannot unlock evicted Storage {s}'
+    assert s.ref_int > 0, f'cannot unlock Storage with no locks {s}'
     s.ref_int -= 1
     if s.ref_int == 0:
       succ = self._make_evictable(s)
-      assert succ, 'Storage was evictable while locked {}'.format(s)
+      assert succ, f'Storage was evictable while locked {s}'
       self._T_unlock(s)
 
   def _compute(self, t : Tensor, rematerialize=True):
     for p in t.parents:
-      assert p.defined, \
-        'a parent Tensor is undefined {} of {}'.format(p, t)
-    assert self.memory_usage + t.op.total_size <= self.budget, \
-      'not enough memory to compute Tensor {}'.format(t)
-  
+      assert p.defined, f'a parent Tensor is undefined {p} of {t}'
+    assert (self.memory_usage + t.op.total_size <=
+            self.budget), f'not enough memory to compute Tensor {t}'
+
     # Record which non-alias siblings are already material. We will use this to
     # free the doubled-computed Tensors, since operators will recompute all
     # outputs, some of which may already be in memory.
     dup_siblings = \
-      list(filter(lambda u: u.defined, t.siblings))
+        list(filter(lambda u: u.defined, t.siblings))
     remat_siblings = \
-      list(filter(lambda u: not u.defined, t.siblings))
+        list(filter(lambda u: not u.defined, t.siblings))
 
     # We need to record this separately in order to make them evictable later;
     # NOTE: we include t if applicable
     remat_storages = \
-      list(filter(lambda u: not u.storage.material, t.siblings + [t]))
+        list(filter(lambda u: not u.storage.material, t.siblings + [t]))
 
     # 'Compute' the operator.
     self.clock += t.op.compute
@@ -119,12 +118,13 @@ class RuntimeV1(TelemetrizedRuntimeBase):
     # NOTE: it might seem like we could save more memory by first evicting the
     #       sibling tensors or something, but this might violate locks on the
     #       Storages and is hard in PyTorch, so I don't do it here.
-    
+
     if t.meta['is_alias']:
       # If 'materializing' an alias, then it should just be defining the Tensor
       # (i.e. metadata in the PyTorch implementation). The underlying Storage
       # should ALWAYS be material at this point, via materializing the parents.
-      assert t.storage.material, 'the underlying Storage of an alias was evicted {}'.format(t)
+      assert (t.storage.material
+              ), f'the underlying Storage of an alias was evicted {t}'
 
     t.storage.material = True
     t.defined = True
@@ -140,7 +140,7 @@ class RuntimeV1(TelemetrizedRuntimeBase):
     # 'Free' the double-computed ephemeral Tensors.
     for u in dup_siblings:
       self.memory_usage -= u.op.sizes[u.index]
-    
+
     # Make the newly materialized Storages evictable
     for u in remat_storages:
       self._make_evictable(u.storage)
@@ -152,8 +152,9 @@ class RuntimeV1(TelemetrizedRuntimeBase):
     #       been recomputed, even after the underlying Storage was rematerialized.
     #       This models the behavior in the PyTorch implementation, where alias
     #       Tensors are fully destroyed (rather than just the storage).
-    assert not t.defined, 'cannot materialize a defined Tensor {}'.format(t)
-    assert t.storage.material or t.storage.ref_int == 0, 'a locked Storage is evicted {}'.format(t.storage)
+    assert not t.defined, f'cannot materialize a defined Tensor {t}'
+    assert (t.storage.material or t.storage.ref_int
+            == 0), f'a locked Storage is evicted {t.storage}'
     assert not t.storage.meta['banished']
 
     self._T_pending(t)
@@ -190,9 +191,9 @@ class RuntimeV1(TelemetrizedRuntimeBase):
     for p in t.parents:
       self._unlock(p.storage)
       for u in remat_siblings + [t]:
-        if u.storage.root_id != p.storage.root_id:
-          if u.id in p.storage.meta['evicted_dependents']:
-            p.storage.meta['evicted_dependents'].remove(u.id)
+        if (u.storage.root_id != p.storage.root_id
+            and u.id in p.storage.meta['evicted_dependents']):
+          p.storage.meta['evicted_dependents'].remove(u.id)
       self._try_banish_V1(p.storage)
 
     if self.telemetry.summary['remat_compute'] > self.remat_limit:
@@ -208,8 +209,9 @@ class RuntimeV1(TelemetrizedRuntimeBase):
     if s.ref_ext > 0 or len(s.meta['evicted_dependents']) > 0:
       return
 
-    assert all(map(lambda t: t.meta['ref_ext'] == 0, s.tensors)),\
-      'tried to banish a Storage with live Tensors {}'.format(s)
+    assert all(
+        map(lambda t: t.meta['ref_ext'] == 0,
+            s.tensors)), f'tried to banish a Storage with live Tensors {s}'
     if s.material:
       if s.ref_int > 0:
         s.ref_int = 0
@@ -239,7 +241,7 @@ class RuntimeV1(TelemetrizedRuntimeBase):
 
   def compute(self, inputs : List[Tensor], op : Operator,
               ids : Tuple[int] = None, names : Tuple[str] = None):
-    if ids == None:
+    if ids is None:
       ids = list(range(self.tensor_count, self.tensor_count + op.outputs))
     op_id = self.op_count
     self.tensor_count += op.outputs
@@ -266,7 +268,7 @@ class RuntimeV1(TelemetrizedRuntimeBase):
 
     # materialize
     self._materialize(tensors[0], rematerialize=False)
-    
+
     for t in tensors:
       # set the last access times to avoid them being evicted immediately
       t.storage.meta['last_access'] = self.clock
@@ -278,15 +280,15 @@ class RuntimeV1(TelemetrizedRuntimeBase):
     return tensors
 
   def get(self, t : Tensor):
-    assert t.storage.ref_ext > 0, \
-      'cannot get a Tensor whose Storage has no external refs {}'.format(t)
+    assert (t.storage.ref_ext >
+            0), f'cannot get a Tensor whose Storage has no external refs {t}'
     t.storage.ref_ext += 1
     t.meta['ref_ext'] += 1
     return t
 
   def release(self, t : Tensor):
-    assert t.storage.ref_ext > 0, \
-      'cannot release a Tensor whose Storage has no external refs {}'.format(t)
+    assert (t.storage.ref_ext >
+            0), f'cannot release a Tensor whose Storage has no external refs {t}'
     t.storage.ref_ext -= 1
     t.meta['ref_ext'] -= 1
     if t.meta['ref_ext'] == 0:
@@ -295,7 +297,7 @@ class RuntimeV1(TelemetrizedRuntimeBase):
       self._try_banish_V1(t.storage)
 
   def pin(self, t : Tensor):
-    assert t.storage.material, 'cannot pin Tensor with immaterial Storage {}'.format(t)
+    assert t.storage.material, f'cannot pin Tensor with immaterial Storage {t}'
     if t.storage.pinned:
       return
     self._lock(t.storage)

@@ -5,7 +5,7 @@ class EqClassNode:
     self.tel = tel
 
   def is_root(self):
-    return self._parent == None
+    return self._parent is None
 
   @staticmethod
   def find_root(ecn : 'EqClassNode'):
@@ -13,9 +13,8 @@ class EqClassNode:
       ecn.tel.summary['heuristic_access_count'] += 1
     if ecn.is_root():
       return ecn
-    else:
-      ecn._parent = EqClassNode.find_root(ecn._parent)
-      return ecn._parent
+    ecn._parent = EqClassNode.find_root(ecn._parent)
+    return ecn._parent
 
   @staticmethod
   def get_value(ecn : 'EqClassNode'):

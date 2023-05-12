@@ -58,11 +58,12 @@ def _stack(in_ch, out_ch, kernel_size, stride, exp_factor, repeats,
     # First one has no skip, because feature map size changes.
     first = _InvertedResidual(in_ch, out_ch, kernel_size, stride, exp_factor,
                               bn_momentum=bn_momentum)
-    remaining = []
-    for _ in range(1, repeats):
-        remaining.append(
-            _InvertedResidual(out_ch, out_ch, kernel_size, 1, exp_factor,
-                              bn_momentum=bn_momentum))
+    remaining = [
+        _InvertedResidual(
+            out_ch, out_ch, kernel_size, 1, exp_factor, bn_momentum=bn_momentum
+        )
+        for _ in range(1, repeats)
+    ]
     return nn.Sequential(first, *remaining)
 
 
@@ -157,7 +158,7 @@ class MNASNet(torch.nn.Module):
         version = local_metadata.get("version", None)
         assert version in [1, 2]
 
-        if version == 1 and not self.alpha == 1.0:
+        if version == 1 and self.alpha != 1.0:
             # In the initial version of the model (v1), stem was fixed-size.
             # All other layer configurations were the same. This will patch
             # the model so that it's identical to v1. Model with alpha 1.0 is
@@ -195,8 +196,7 @@ class MNASNet(torch.nn.Module):
 
 def _load_pretrained(model_name, model, progress):
     if model_name not in _MODEL_URLS or _MODEL_URLS[model_name] is None:
-        raise ValueError(
-            "No checkpoint is available for model type {}".format(model_name))
+        raise ValueError(f"No checkpoint is available for model type {model_name}")
     checkpoint_url = _MODEL_URLS[model_name]
     model.load_state_dict(
         load_state_dict_from_url(checkpoint_url, progress=progress))

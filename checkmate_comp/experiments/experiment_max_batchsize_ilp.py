@@ -50,7 +50,7 @@ if __name__ == "__main__":
     model_name = args.model_name
 
     # load costs, and plot optionally, if platform is not flops
-    logging.info(f"Loading costs")
+    logging.info("Loading costs")
     if args.platform == "flops":
         cost_model = None
     else:

@@ -69,7 +69,7 @@ def run_with_callback(callback, baseline, heuristic, ratio, runtime,
   return rt, result, pr
 
 def dump_run(rt, result, pr, analysis_dir=None):
-  if analysis_dir == None:
+  if analysis_dir is None:
     date_str = date_string()
     analysis_dir = get_output_dir(ANALYSIS_MOD) + '/' + date_str
 

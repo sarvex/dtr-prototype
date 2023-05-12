@@ -82,8 +82,7 @@ class SimilarityTreeLSTM(nn.Module):
         rinputs = self.emb(rinputs)
         lstate, lhidden = self.childsumtreelstm(ltree, linputs)
         rstate, rhidden = self.childsumtreelstm(rtree, rinputs)
-        output = self.similarity(lstate, rstate)
-        return output
+        return self.similarity(lstate, rstate)
 
 # This model is implemented by ourselves; it is not related to the model in the original repository.
 # TreeLSTM without embedding

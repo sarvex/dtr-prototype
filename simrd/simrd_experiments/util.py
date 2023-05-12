@@ -8,14 +8,14 @@ def ensure_path(path):
     os.makedirs(path)
 
 def ensure_output_path(mod):
-  p = _OUTPUT_DIR + '/' + mod
+  p = f'{_OUTPUT_DIR}/{mod}'
   ensure_path(p)
 
 def get_output_dir(mod):
-  return _OUTPUT_DIR + '/' + mod
+  return f'{_OUTPUT_DIR}/{mod}'
 
 def get_output_path(mod, file):
-  return get_output_dir(mod) + '/' + file
+  return f'{get_output_dir(mod)}/{file}'
 
 def date_string():
   return datetime.now().strftime("%Y%m%d-%H%M%S")

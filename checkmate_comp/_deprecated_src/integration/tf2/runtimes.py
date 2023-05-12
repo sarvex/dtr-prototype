@@ -66,15 +66,12 @@ def get_exec_time_timeline(mod, batch_size, get_grads=False):
         out = conc(*inputs)
         if not get_grads:
             sess.run(out, options=run_opts, run_metadata=run_meta)
-            t1 = timeline.Timeline(run_meta.step_stats)
-            ctf = t1.generate_chrome_trace_format()
         else:
             grads = tf.gradients(out, inputs, grad_ys=outputs)
             run_meta = tf1.RunMetadata()
             sess.run(grads, options=run_opts, run_metadata=run_meta)
-            t1 = timeline.Timeline(run_meta.step_stats)
-            ctf = t1.generate_chrome_trace_format()
-
+        t1 = timeline.Timeline(run_meta.step_stats)
+        ctf = t1.generate_chrome_trace_format()
     return convert_string_to_time(ctf)
 
 
@@ -99,10 +96,16 @@ def get_exec_time_profile(lyr, batch_size, get_grads=False):  # must
         sess.run(out, options=run_opts, run_metadata=run_meta)
         profile = tf1.profiler.Profiler(sess.graph)
         profile.add_step(0, run_meta)
-        profiler_options = (tf1.profiler.ProfileOptionBuilder(
-            tf1.profiler.ProfileOptionBuilder.time_and_memory(
-                min_cpu_micros=int(0)
-            )).with_step(0).with_empty_output().build())
+        profiler_options = (
+            tf1.profiler.ProfileOptionBuilder(
+                tf1.profiler.ProfileOptionBuilder.time_and_memory(
+                    min_cpu_micros=0
+                )
+            )
+            .with_step(0)
+            .with_empty_output()
+            .build()
+        )
         prof = profile.profile_graph(options=profiler_options)
         micro_s = prof.total_exec_micros
         if get_grads:
@@ -138,11 +141,11 @@ def main():
     batch_size = args.batch_size
 
     if output_file is None:
-        output_file = model_name + "_runtimes"
+        output_file = f"{model_name}_runtimes"
     output_file = osp.join(args.folder, output_file)
     print("WARNING: Using default input shape")
     model = get_keras_model(model_name, input_shape=None)
-    loss_fn = eval("tf1.losses.{}".format(args.loss_function))
+    loss_fn = eval(f"tf1.losses.{args.loss_function}")
     # ctf, t1 = get_exec_time_timeline(model, batch_size)
     forwards = [
         get_exec_time_timeline(lyr, batch_size)

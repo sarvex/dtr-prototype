@@ -20,7 +20,7 @@ class Trainer(object):
         self.model.train()
         total_loss = 0.0
         indices = torch.randperm(len(dataset), dtype=torch.long, device='cpu')
-        for idx in tqdm(range(len(dataset)), desc='Training epoch ' + str(self.epoch + 1) + ''):
+        for idx in tqdm(range(len(dataset)), desc=f'Training epoch {str(self.epoch + 1)}'):
             ltree, linput, rtree, rinput, label = dataset[indices[idx]]
             target = utils.map_label_to_target(label, dataset.num_classes)
             linput, rinput = linput.to(self.device), rinput.to(self.device)
@@ -41,7 +41,7 @@ class Trainer(object):
             total_loss = 0.0
             predictions = torch.zeros(len(dataset), dtype=torch.float, device='cpu')
             indices = torch.arange(1, dataset.num_classes + 1, dtype=torch.float, device='cpu')
-            for idx in tqdm(range(len(dataset)), desc='Testing epoch  ' + str(self.epoch) + ''):
+            for idx in tqdm(range(len(dataset)), desc=f'Testing epoch  {str(self.epoch)}'):
                 ltree, linput, rtree, rinput, label = dataset[idx]
                 target = utils.map_label_to_target(label, dataset.num_classes)
                 linput, rinput = linput.to(self.device), rinput.to(self.device)

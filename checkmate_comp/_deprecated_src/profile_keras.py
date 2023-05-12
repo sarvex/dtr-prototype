@@ -70,8 +70,7 @@ def get_concrete_function(model, input_shapes):
         tensor_specs = tf.TensorSpec(shape=input_shapes[0], dtype=tf.float32)
     else:
         tensor_specs = [tf.TensorSpec(shape=shp, dtype=tf.float32) for shp in input_shapes]
-    concrete_func = func.get_concrete_function(tensor_specs)
-    return concrete_func
+    return func.get_concrete_function(tensor_specs)
 
 
 # def get_exec_time_timeline(log_device_placement=True):
@@ -87,7 +86,7 @@ def get_exec_time_timeline(model, batch_size, get_grads=False, num_runs=1, retur
     # outputs = [tf.random.normal(shp, name=name) for name, shp in zip(output_names, output_shapes)]
     times = []
 
-    for run in range(num_runs + 1):
+    for _ in range(num_runs + 1):
         # with tf1.Session(config=config) as sess:
         with tf1.Session() as sess:
             run_meta = tf1.RunMetadata()
@@ -97,23 +96,21 @@ def get_exec_time_timeline(model, batch_size, get_grads=False, num_runs=1, retur
             out = concrete_function(*inputs)
             if not get_grads:
                 sess.run(out, options=run_opts, run_metadata=run_meta)
-                t1 = timeline.Timeline(run_meta.step_stats)
-                ctf = t1.generate_chrome_trace_format()
             else:
                 grads = tf.gradients(out, inputs, grad_ys=outputs)
                 run_meta = tf1.RunMetadata()
                 sess.run(grads, options=run_opts, run_metadata=run_meta)
-                t1 = timeline.Timeline(run_meta.step_stats)
-                ctf = t1.generate_chrome_trace_format()
+            t1 = timeline.Timeline(run_meta.step_stats)
+            ctf = t1.generate_chrome_trace_format()
             if return_timeline:
                 return ctf
 
-            # for i in inputs:
-            #    del i
-            # del inputs
-            # for o in outputs:
-            #    del o
-            # del outputs
+                    # for i in inputs:
+                    #    del i
+                    # del inputs
+                    # for o in outputs:
+                    #    del o
+                    # del outputs
 
         time = convert_string_to_time(ctf)
         times.append(time)
@@ -160,7 +157,7 @@ def convert_string_to_time(s):
     events = json.loads(s)['traceEvents']
     names_and_times = {e['name']: e['dur'] for e in events if e['ph'] == 'X'}
 
-    for key in names_and_times.keys():
+    for key in names_and_times:
         if 'Conv2DBackpropInput' in key:
             return names_and_times[key]
 
@@ -168,7 +165,7 @@ def convert_string_to_time(s):
     ban_keys = ['unknown', 'RandomStandardNormal', 'NoOp']
     longest_event = max(names_and_times, key=lambda x: names_and_times[x])
 
-    while longest_event == '' or any([b in longest_event for b in ban_keys]):
+    while longest_event == '' or any(b in longest_event for b in ban_keys):
         print("names_and_times[longest_event]", names_and_times[longest_event])
         names_and_times[longest_event] = 0
         longest_event = max(names_and_times, key=lambda x: names_and_times[x])
@@ -200,11 +197,11 @@ def main():
     batch_size = args.batch_size
 
     if output_file is None:
-        output_file = model_name + "_runtimes"
+        output_file = f"{model_name}_runtimes"
     output_file = osp.join(args.folder, output_file)
 
     model = get_keras_model(model_name, input_shape=input_shape)
-    loss_fn = eval("tf1.losses.{}".format(args.loss_function))
+    loss_fn = eval(f"tf1.losses.{args.loss_function}")
     print("Num layers:", len(model.layers))
 
     # Run first layer a few times (4). On GPUs, it seems the first graph run has some additional overhead.

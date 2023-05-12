@@ -67,13 +67,13 @@ def check_error(experiment_name, model_name, specific_params, path_prefix):
 def get_report_prefix(experiment_name, specific_params, cmd_id=0):
     if experiment_name == 'dtr':
         if specific_params.get('kind') == 'ratio':
-            return 'cmd-{}-dtr-ratio-{}'.format(cmd_id, specific_params['ratio'])
+            return f"cmd-{cmd_id}-dtr-ratio-{specific_params['ratio']}"
         elif specific_params.get('kind') == 'fixed':
-            return 'cmd-{}-dtr-fixed-{}-{}'.format(cmd_id, specific_params['batch_size'], specific_params['memory_budget'])
+            return f"cmd-{cmd_id}-dtr-fixed-{specific_params['batch_size']}-{specific_params['memory_budget']}"
         elif specific_params.get('kind') == 'param_sweep':
-            return 'cmd-{}-dtr-sweep-{}-{}'.format(cmd_id, specific_params['batch_size'], specific_params['memory_budget'])
+            return f"cmd-{cmd_id}-dtr-sweep-{specific_params['batch_size']}-{specific_params['memory_budget']}"
     elif experiment_name == 'baseline':
-        return 'cmd-{}-baseline-{}'.format(cmd_id, specific_params['batch_size'])
+        return f"cmd-{cmd_id}-baseline-{specific_params['batch_size']}"
 
 
 def run_trials(config_dir, python_cmd,
@@ -114,8 +114,10 @@ def run_trials(config_dir, python_cmd,
         try:
             write_json(cwd, params_file, specific_params)
             if not trial_run:
-                filename = prepare_out_file(path_prefix,
-                                            '{}-{}.csv'.format(get_report_prefix(experiment_name, specific_params, cmd_id), model_name))
+                filename = prepare_out_file(
+                    path_prefix,
+                    f'{get_report_prefix(experiment_name, specific_params, cmd_id)}-{model_name}.csv',
+                )
                 mode = 'a' if append_to_csv else 'w'
                 with open(filename, mode, newline='') as csvfile:
                     writer = create_csv_writer(csvfile, specific_params)
@@ -150,7 +152,7 @@ def run_trials(config_dir, python_cmd,
                     if not report_errors:
                         raise e
                     if trial_run:
-                        return (False, 'Baseline failed: {}'.format(render_exception(e)))
+                        return False, f'Baseline failed: {render_exception(e)}'
                     log_error(experiment_name, model_name, specific_params, i, render_exception(e), path_prefix)
                     return (True, 'successfully caught error')
                 time.sleep(4)
@@ -158,9 +160,10 @@ def run_trials(config_dir, python_cmd,
         finally:
             os.remove(params_file)
     except Exception as e:
-        return (False,
-                'Encountered exception on ({}, {}, {}):\n'.format(
-                    experiment_name, model_name, specific_params) + render_exception(e))
+        return (
+            False,
+            f'Encountered exception on ({experiment_name}, {model_name}, {specific_params}):\n{render_exception(e)}',
+        )
 
 
 def process_command(command: dict, config_template: dict):
@@ -179,13 +182,13 @@ def process_command(command: dict, config_template: dict):
         if 'batch_size' not in result:
             result['batch_size'] = config_template['batch_size']
         return result
-    elif result['type'] == 'dtr' or result['type'] == 'simrd':
+    elif result['type'] in ['dtr', 'simrd']:
         for (k, v) in config_template.items():
             if k not in command:
                 result[k] = v
         return result
     else:
-        raise Exception('Unknown type: {}'.format(result['type']))
+        raise Exception(f"Unknown type: {result['type']}")
 
 
 def validate_setting(method, exp_config):
@@ -224,8 +227,8 @@ def unfold_settings(exp_config):
         Note: for `ratio` command, the `memory_budget` is calculated here in order to
               avoid multiple runs of baseline trial
     '''
-    setting_heading = list()
-    list_fields = list()
+    setting_heading = []
+    list_fields = []
     for (k, v) in exp_config.items():
         if isinstance(v, list):
             setting_heading.append(k)
@@ -260,7 +263,7 @@ def run_baseline(model, exp_config, config, config_dir, output_dir):
     }
     if 'input_params' in exp_config:
         baseline_config['input_params'] = exp_config['input_params']
-    filename = str(time.time()) + '.json'
+    filename = f'{str(time.time())}.json'
     temp_file = prepare_out_file(os.getcwd(), filename)
     success, msg = run_trials(config_dir,
                               python_command('baseline', config),
@@ -273,7 +276,7 @@ def run_baseline(model, exp_config, config, config_dir, output_dir):
                               trial_run_outfile=temp_file,
                               sync_gpu=config['sync_gpu'])
     if not success:
-        return False, 'Error while running baseline trial: \n{}'.format(msg)
+        return False, f'Error while running baseline trial: \n{msg}'
 
     mem_usage = read_json(output_dir, temp_file)
     os.remove(temp_file)
@@ -299,8 +302,7 @@ def eval_command(model, exp_config, config, config_dir, output_dir, cmd_id):
                 if threshold_ratio != -1:
                     exp_config['no_sampling_below_budget'] = threshold_ratio*result
 
-        conf_cnt = 0
-        for combo in unfold_settings(exp_config):
+        for conf_cnt, combo in enumerate(unfold_settings(exp_config)):
             success, msg = run_trials(config_dir,
                                       python_command(combo['type'], config),
                                       combo['type'], model, combo,
@@ -314,7 +316,6 @@ def eval_command(model, exp_config, config, config_dir, output_dir, cmd_id):
                                       sync_gpu=config['sync_gpu'])
             if not success:
                 return False, msg
-            conf_cnt += 1
         return True, 'success'
     except Exception as e:
         return (False,
@@ -331,23 +332,23 @@ def parse_commands(model, config):
             config: the top-level config
     '''
     if not config['dtr_settings'].get(model):
-        yield False, 'No settings for {}'.format(model), None
+        yield (False, f'No settings for {model}', None)
 
     default_setting = config['dtr_settings'].get('default')
     model_commands = config['dtr_settings'].get(model)
 
-    if default_setting is not None:
-        config_template = default_setting.copy()
-    else:
-        config_template = dict()
-
+    config_template = default_setting.copy() if default_setting is not None else {}
     for command in model_commands:
         exp_config = process_command(command, config_template)
         if exp_config.get('kind') in ('ratio',):
             exp_config['memory_budget'] = -1.0
         success, msg = validate_setting(exp_config['type'], exp_config)
         if not success:
-            yield False, 'Malformat configuration for {}-{}: {}'.format(model, exp_config['type'], msg), None
+            yield (
+                False,
+                f"Malformat configuration for {model}-{exp_config['type']}: {msg}",
+                None,
+            )
         else:
             yield True, 'Success', exp_config
 
@@ -368,7 +369,7 @@ def bootstrap_conf_intervals(data, stat, bootstrap_iters=10000, confidence=95, m
 
     estimates = [
         summary_stat(np.random.choice(data, replace=True, size=len(data)))
-        for i in range(bootstrap_iters)
+        for _ in range(bootstrap_iters)
     ]
 
     # To get C% confidence intervals, we exclude the bottom (100-C)/2 % and the top (100-C)/2 %
@@ -394,9 +395,9 @@ def collect_raw_measurements(experiment_name, model, specific_params, path_prefi
 
     The first two fields will be None if there is no data file.
     """
-    filename = '{}-{}.csv'.format(get_report_prefix(experiment_name, specific_params, cmd_id), model)
+    filename = f'{get_report_prefix(experiment_name, specific_params, cmd_id)}-{model}.csv'
     if not check_file_exists(path_prefix, filename):
-        return (None, None, 'Data file {} does not exist at {}'.format(filename, path_prefix))
+        return None, None, f'Data file {filename} does not exist at {path_prefix}'
 
     full_path = os.path.join(path_prefix, filename)
 
@@ -476,10 +477,11 @@ def parse_data_file(experiment_name, model, config, specific_params, path_prefix
         }
 
         # in case everything errored out, this ensure that we will have a record of the error
-        if report_errors:
-            if check_error(experiment_name, model, specific_params, path_prefix):
-                summary['summary'] = 'error'
-                return summary, 'success'
+        if report_errors and check_error(
+            experiment_name, model, specific_params, path_prefix
+        ):
+            summary['summary'] = 'error'
+            return summary, 'success'
 
         # if this was a ratio experiment
         # and we have a baseline available, let's compute
@@ -525,4 +527,7 @@ def parse_data_file(experiment_name, model, config, specific_params, path_prefix
         return (summary, 'success')
 
     except Exception as e:
-        return (None, 'Encountered exception on ({}, {}): '.format(experiment_name, model) + render_exception(e))
+        return (
+            None,
+            f'Encountered exception on ({experiment_name}, {model}): {render_exception(e)}',
+        )

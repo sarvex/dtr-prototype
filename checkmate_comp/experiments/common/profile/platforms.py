@@ -8,9 +8,7 @@ def pretty_platform_name(platform: str):
         "p2xlarge": "K80",
         "flops": "FLOPs",
     }
-    if platform in mapping:
-        return mapping[platform]
-    return platform
+    return mapping.get(platform, platform)
 
 
 def platform_memory(platform: str):
@@ -20,6 +18,4 @@ def platform_memory(platform: str):
         "p2xlarge": 12 * 1000 * 1000 * 1000,
         "flops": 12 * 1000 * 1000 * 1000,
     }
-    if platform in mapping:
-        return mapping[platform]
-    return platform
+    return mapping.get(platform, platform)

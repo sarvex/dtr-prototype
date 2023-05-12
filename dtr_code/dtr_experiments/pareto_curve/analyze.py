@@ -17,9 +17,7 @@ def main(data_dir, config_dir, output_dir):
         for model in sorted(config['models']):
             summary[model] = []
             baseline_dict[model] = {}
-            # the script will not be run if there is an error
-            cmd_id = 0
-            for _, _, exp_config in parse_commands(model, config):
+            for cmd_id, (_, _, exp_config) in enumerate(parse_commands(model, config)):
                 baseline_params = None
                 for specific_params in unfold_settings(exp_config):
                     batch_size = specific_params['batch_size']
@@ -45,7 +43,6 @@ def main(data_dir, config_dir, output_dir):
                         return 1
                     stats['command_id'] = cmd_id
                     summary[model].append(stats)
-                cmd_id += 1
         write_json(output_dir, 'data.json', summary)
         write_status(output_dir, True, 'success')
     except Exception as e:

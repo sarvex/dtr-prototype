@@ -88,8 +88,7 @@ class LSTMClassifier(nn.Module):
         embeds = torch.randint(self.vocab_size - 1, [sentence.size(0), self.batch_size, self.embedding_dim], dtype=torch.float).cuda()
         x = embeds.view(len(sentence), self.batch_size, -1)
         lstm_out, self.hidden = self.lstm(x, self.hidden)
-        y  = self.hidden2label(lstm_out[-1])
-        return y
+        return self.hidden2label(lstm_out[-1])
 
 class GRUClassifier(nn.Module):
 
@@ -110,5 +109,4 @@ class GRUClassifier(nn.Module):
         lstm_out, lstm_h = self.gru(x, hidden)
         x = F.tanh(torch.transpose(x, 1, 2))
         x = F.max_pool1d(x, x.size(2)).squeeze(2)
-        y  = self.hidden2label(x)
-        return y
+        return self.hidden2label(x)

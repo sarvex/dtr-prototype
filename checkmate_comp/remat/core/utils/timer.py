@@ -9,7 +9,7 @@ class Timer:
         self._elapsed = Decimal()
         self._name = name
         if extra_data:
-            self._name += "; " + str(extra_data)
+            self._name += f"; {str(extra_data)}"
         self._print_results = print_results
         self._start_time = None
         self._children = {}

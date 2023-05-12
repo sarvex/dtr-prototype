@@ -39,7 +39,7 @@ class gaussian_data_generator(object):
     def random_distribution(self, p=None):
         if p is None:
             p = [np.random.uniform() for _ in range(self.n)]
-            p = p / np.sum(p)
+            p /= np.sum(p)
         self.p = p
 
     # switch to uniform distribution
@@ -59,7 +59,9 @@ class gaussian_data_generator(object):
 
 
 def plot(points):
-    plt.scatter(points[:, 0], points[:, 1], c=[0.3 for i in range(1000)], alpha=0.5)
+    plt.scatter(
+        points[:, 0], points[:, 1], c=[0.3 for _ in range(1000)], alpha=0.5
+    )
     plt.show()
     plt.close()
 

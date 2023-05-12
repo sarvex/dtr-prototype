@@ -55,24 +55,21 @@ class SICKDataset(data.Dataset):
     @classmethod
     def random_tree(cls, line, dep, num_children, in_dim):
         parents = list(filter(lambda x: x != 0, map(int, line.split())))
-        root = cls._random_tree_impl(0, dep, parents, num_children, in_dim)
-        return root
+        return cls._random_tree_impl(0, dep, parents, num_children, in_dim)
     
     @classmethod
     def _random_tree_impl(cls, dep, lim, parents, num_children, in_dim):
         res = Tree(torch.zeros([1, in_dim]).cuda())
         res.idx = random.choice(parents) - 1
-        if lim == dep:
-            return res
-        else:
-            for i in range(num_children):
+        if lim != dep:
+            for _ in range(num_children):
                 res.add_child(cls._random_tree_impl(dep + 1, lim, parents, num_children, in_dim))
-            return res
+        return res
 
     @classmethod
     def read_tree(cls, line):
         parents = list(map(int, line.split()))
-        trees = dict()
+        trees = {}
         root = None
         for i in range(1, len(parents) + 1):
             if i - 1 not in trees.keys() and parents[i - 1] != -1:
@@ -87,7 +84,7 @@ class SICKDataset(data.Dataset):
                         tree.add_child(prev)
                     trees[idx - 1] = tree
                     tree.idx = idx - 1
-                    if parent - 1 in trees.keys():
+                    if parent - 1 in trees:
                         trees[parent - 1].add_child(tree)
                         break
                     elif parent == 0:

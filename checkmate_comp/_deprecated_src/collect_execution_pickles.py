@@ -12,8 +12,7 @@ def extract_params():
     parser = argparse.ArgumentParser()
     parser.add_argument("--log-folder-suffix", default="_gradless_eagerfalse", type=str,
                         help="Suffix of log folders. Will search in data/*[log-folder-suffix]/metrics.pickle")
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 
 

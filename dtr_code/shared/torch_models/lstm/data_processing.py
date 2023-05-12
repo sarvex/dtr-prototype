@@ -56,14 +56,12 @@ class TxtDatasetProcessing(Dataset):
         self.txt_path = os.path.join(data_path, txt_path)
         # reading txt file from file
         txt_filepath = os.path.join(data_path, txt_filename)
-        fp = open(txt_filepath, 'r')
-        self.txt_filename = [x.strip() for x in fp]
-        fp.close()
+        with open(txt_filepath, 'r') as fp:
+            self.txt_filename = [x.strip() for x in fp]
         # reading labels from file
         label_filepath = os.path.join(data_path, label_filename)
-        fp_label = open(label_filepath, 'r')
-        labels = [int(x.strip()) for x in fp_label]
-        fp_label.close()
+        with open(label_filepath, 'r') as fp_label:
+            labels = [int(x.strip()) for x in fp_label]
         self.label = labels
         self.corpus = corpus
         self.sen_len = sen_len

@@ -93,9 +93,7 @@ class MaxBatchILPSolver:
 
             def _max_num_hazards(t, i, k):
                 num_uses_after_k = sum(1 for j in self.g.successors(i) if j > k)
-                if t + 1 < T:
-                    return 2 + num_uses_after_k
-                return 1 + num_uses_after_k
+                return 2 + num_uses_after_k if t + 1 < T else 1 + num_uses_after_k
 
             with self.profiler("Constraint: upper bound for 1 - Free_E",
                                extra_data={'T': str(T), 'budget': str(budget)}):
@@ -144,8 +142,8 @@ class MaxBatchILPSolver:
 
             if self.cpu_fwd_factor:
                 with self.profiler("Constraint: recomputation overhead"):
-                    compute_fwd = sum([permute_cpu[i] for i in self.g.vfwd])
-                    bwd_compute = sum([permute_cpu[i] for i in self.g.v if i not in self.g.vfwd])
+                    compute_fwd = sum(permute_cpu[i] for i in self.g.vfwd)
+                    bwd_compute = sum(permute_cpu[i] for i in self.g.v if i not in self.g.vfwd)
                     max_mem = (self.cpu_fwd_factor * compute_fwd + bwd_compute)
                     self.logger.info(f"Solver using compute overhead ceiling of {max_mem}")
                     self.m.addConstr(quicksum(self.R[t, i] * permute_cpu[i] for t in range(T) for i in range(T)) <= max_mem, name="limit_cpu")

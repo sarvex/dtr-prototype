@@ -17,33 +17,33 @@ from .tree import Tree
 # if .pth file is found, will load that
 # else will load from .txt file & save
 def load_word_vectors(path):
-    if os.path.isfile(path + '.pth') and os.path.isfile(path + '.vocab'):
+    if os.path.isfile(f'{path}.pth') and os.path.isfile(f'{path}.vocab'):
         print('==> File found, loading to memory')
-        vectors = torch.load(path + '.pth')
-        vocab = Vocab(filename=path + '.vocab')
+        vectors = torch.load(f'{path}.pth')
+        vocab = Vocab(filename=f'{path}.vocab')
         return vocab, vectors
     # saved file not found, read from txt file
     # and create tensors for word vectors
     print('==> File not found, preparing, be patient')
-    count = sum(1 for line in open(path + '.txt', 'r', encoding='utf8', errors='ignore'))
-    with open(path + '.txt', 'r') as f:
+    count = sum(
+        1 for _ in open(f'{path}.txt', 'r', encoding='utf8', errors='ignore')
+    )
+    with open(f'{path}.txt', 'r') as f:
         contents = f.readline().rstrip('\n').split(' ')
         dim = len(contents[1:])
     words = [None] * (count)
     vectors = torch.zeros(count, dim, dtype=torch.float, device='cpu')
-    with open(path + '.txt', 'r', encoding='utf8', errors='ignore') as f:
-        idx = 0
-        for line in f:
+    with open(f'{path}.txt', 'r', encoding='utf8', errors='ignore') as f:
+        for idx, line in enumerate(f):
             contents = line.rstrip('\n').split(' ')
             words[idx] = contents[0]
             values = list(map(float, contents[1:]))
             vectors[idx] = torch.tensor(values, dtype=torch.float, device='cpu')
-            idx += 1
-    with open(path + '.vocab', 'w', encoding='utf8', errors='ignore') as f:
+    with open(f'{path}.vocab', 'w', encoding='utf8', errors='ignore') as f:
         for word in words:
             f.write(word + '\n')
-    vocab = Vocab(filename=path + '.vocab')
-    torch.save(vectors, path + '.pth')
+    vocab = Vocab(filename=f'{path}.vocab')
+    torch.save(vectors, f'{path}.pth')
     return vocab, vectors
 
 
@@ -73,8 +73,7 @@ def map_label_to_target(label, num_classes):
     return target
 
 def make_const(*dim, use_dtr=False):
-    res = torch.zeros(dim).cuda()
-    return res
+    return torch.zeros(dim).cuda()
 
 def t(in_dim, batch_size, use_dtr):
     return make_const(batch_size, in_dim, use_dtr=use_dtr)

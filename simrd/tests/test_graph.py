@@ -23,7 +23,7 @@ def test_simrd_resnet_baseline():
   log = MANIFEST['ResNet-32 (56)']['log']
   with open(log, 'r') as f:
     g = parse_file(f, out_cond=OutputCondition.PREALLOCATE)
-    print('g.meta["output_ram"] = {}'.format(g.meta['output_ram']))
+    print(f"""g.meta["output_ram"] = {g.meta['output_ram']}""")
 
   rt, result, pr = run_baseline(g.get_closure(), stats=True, trace=True)
   analysis_dir = dump_run(rt, result, pr)
@@ -31,8 +31,8 @@ def test_simrd_resnet_baseline():
   analyze_memory(analysis_dir)
 
   g_r = rewrite_checkmate(g)
-  print('  g.meta["output_ram"]   = {}'.format(g.meta['output_ram']))
-  print('g_r.meta["constant_ram"] = {}'.format(g_r.meta['constant_ram']))
+  print(f"""  g.meta["output_ram"]   = {g.meta['output_ram']}""")
+  print(f"""g_r.meta["constant_ram"] = {g_r.meta['constant_ram']}""")
   rt_r, result_r, pr_r = run_baseline(g_r.get_closure(), stats=True, trace=True)
   analysis_dir_r = dump_run(rt_r, result_r, pr_r)
   dump_csv(analysis_dir_r)
@@ -53,8 +53,8 @@ def test_simrd_resnet_05():
   analyze_memory(analysis_dir)
 
   g_r = rewrite_checkmate(g)
-  print('  g.meta["output_ram"]   = {}'.format(g.meta['output_ram']))
-  print('g_r.meta["constant_ram"] = {}'.format(g_r.meta['constant_ram']))
+  print(f"""  g.meta["output_ram"]   = {g.meta['output_ram']}""")
+  print(f"""g_r.meta["constant_ram"] = {g_r.meta['constant_ram']}""")
   rt_r, result_r, pr_r = run_with_callback(
     g_r.get_closure(), result_base, DTREqClass(), 0.5, RuntimeV2EagerOptimized,
     rt_kwargs={'stats': True, 'trace': True}
@@ -74,17 +74,17 @@ def test_checkmate_to_simrd_analytical_cost():
       try:
         model = get_keras_model(name)
         dfg = dfgraph_from_keras(model, batch_size=batch_size, loss_cpu_cost=0, loss_ram_cost=(4 * batch_size))
-        
+
         g = from_dfgraph(dfg)
         rt, result, pr = run_baseline(g.get_closure(), stats=True, trace=True)
-        print('Baseline simrd results for {}:'.format(name), file=test_log)
+        print(f'Baseline simrd results for {name}:', file=test_log)
         print(json.dumps(result, indent=2), file=test_log)
         print(file=test_log)
       except Exception as e:
-        print('Failed for {}:'.format(name), file=test_log)
+        print(f'Failed for {name}:', file=test_log)
         print(traceback.format_exc(),file=test_log)
         print(file=test_log)
-  print('saved Checkmate -> simrd test log to [{}]'.format(test_log_filename))
+  print(f'saved Checkmate -> simrd test log to [{test_log_filename}]')
 
 # TODO: unit tests for Checkmate -> simrd graph conversion
 # TODO: implement scaffolding for getting profiled cost model
@@ -103,7 +103,7 @@ def test_graph_simple():
   assert x.index == 0
   assert x.name == 'x'
   assert x.storage_size == x.size() == 5
-  assert x.alias() == None
+  assert x.alias() is None
 
   assert len(g.fwd_ops) == 1 and g.fwd_ops['f/0'] == op
   assert len(g.op_parents['f/0']) == 0
@@ -131,13 +131,13 @@ def test_collapse_aliases_linear():
   topo = graph_r.ops_topological()
 
   assert len(graph_r.fwd_ops) == 2
-  assert graph_r.op_children[topo[0]] == set([topo[1]])
-  assert graph_r.op_parents[topo[1]] == set([topo[0]])
+  assert graph_r.op_children[topo[0]] == {topo[1]}
+  assert graph_r.op_parents[topo[1]] == {topo[0]}
   assert graph_r.meta['compute'] == 15
 
   print()
-  print('tensor rewrite map: {}'.format(graph_r.meta['tensor_map']))
-  print('    op rewrite map: {}'.format(graph_r.meta['op_map']))
+  print(f"tensor rewrite map: {graph_r.meta['tensor_map']}")
+  print(f"    op rewrite map: {graph_r.meta['op_map']}")
 
 def test_collapse_aliases_tuple():
   graph = Graph()
@@ -168,11 +168,11 @@ def test_collapse_aliases_tuple():
   assert graph_r.meta['tensor_map'][xa.name] == new_x_name
   assert graph_r.meta['tensor_map'][xb.name] == new_x_name
   for new_op_name in new_op_names:
-    assert graph_r.op_parents[new_op_name] == set([new_f_name])
+    assert graph_r.op_parents[new_op_name] == {new_f_name}
 
   print()
-  print('tensor rewrite map: {}'.format(graph_r.meta['tensor_map']))
-  print('    op rewrite map: {}'.format(graph_r.meta['op_map']))
+  print(f"tensor rewrite map: {graph_r.meta['tensor_map']}")
+  print(f"    op rewrite map: {graph_r.meta['op_map']}")
 
 def test_collapse_aliases_schedule():
   graph = Graph()
@@ -215,11 +215,11 @@ def test_collapse_aliases_schedule():
   ]
 
   print()
-  print('tensor rewrite map: {}'.format(graph_r.meta['tensor_map']))
-  print('    op rewrite map: {}'.format(graph_r.meta['op_map']))
+  print(f"tensor rewrite map: {graph_r.meta['tensor_map']}")
+  print(f"    op rewrite map: {graph_r.meta['op_map']}")
   print()
-  print(' original schedule: {}'.format([str(s) for s in schedule_pre]))
-  print('rewritten schedule: {}'.format([str(s) for s in schedule_post]))
+  print(f' original schedule: {[str(s) for s in schedule_pre]}')
+  print(f'rewritten schedule: {[str(s) for s in schedule_post]}')
 
 def test_merge_tuples():
   graph = Graph()
@@ -243,11 +243,11 @@ def test_merge_tuples():
   assert graph_r.tensors[new_x1_name].size() == x1.size() + x2.size()
   assert not graph_r.ops[new_f_name].is_tuple()
   for new_op_name in new_op_names:
-    assert graph_r.op_parents[new_op_name] == set([new_f_name])
+    assert graph_r.op_parents[new_op_name] == {new_f_name}
 
   print()
-  print('tensor rewrite map: {}'.format(graph_r.meta['tensor_map']))
-  print('    op rewrite map: {}'.format(graph_r.meta['op_map']))
+  print(f"tensor rewrite map: {graph_r.meta['tensor_map']}")
+  print(f"    op rewrite map: {graph_r.meta['op_map']}")
 
 def test_merge_tuples_schedule():
   graph = Graph()
@@ -287,11 +287,11 @@ def test_merge_tuples_schedule():
   ]
 
   print()
-  print('tensor rewrite map: {}'.format(graph_r.meta['tensor_map']))
-  print('    op rewrite map: {}'.format(graph_r.meta['op_map']))
+  print(f"tensor rewrite map: {graph_r.meta['tensor_map']}")
+  print(f"    op rewrite map: {graph_r.meta['op_map']}")
   print()
-  print(' original schedule: {}'.format([str(s) for s in schedule_pre]))
-  print('rewritten schedule: {}'.format([str(s) for s in schedule_post]))
+  print(f' original schedule: {[str(s) for s in schedule_pre]}')
+  print(f'rewritten schedule: {[str(s) for s in schedule_post]}')
 
 def test_constant_elim():
   graph = Graph()
@@ -306,7 +306,7 @@ def test_constant_elim():
   ]
 
   assert len(graph.fwd_ops) == 3
-  assert graph.op_parents[g.name] == set([cf.name, cf2.name])
+  assert graph.op_parents[g.name] == {cf.name, cf2.name}
 
   graph_r = rewrite_constant_elim(graph)
   assert len(graph_r.fwd_ops) == 1

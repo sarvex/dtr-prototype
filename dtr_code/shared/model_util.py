@@ -58,12 +58,16 @@ DENSENET_BC = {
 identity = lambda x: x
 
 def get_optimizer(model_name : str, models):
-    model = models[0]
     if model_name == 'unroll_gan':
         return None
-    if model_name == 'unet':
-        return torch.optim.RMSprop(model.parameters(), 0.001, weight_decay=1e-8, momentum=0.9)
-    return torch.optim.SGD(model.parameters(), 0.1, 0.9)
+    model = models[0]
+    return (
+        torch.optim.RMSprop(
+            model.parameters(), 0.001, weight_decay=1e-8, momentum=0.9
+        )
+        if model_name == 'unet'
+        else torch.optim.SGD(model.parameters(), 0.1, 0.9)
+    )
 
 
 def binary_cross_entropy(x, y):
@@ -90,9 +94,7 @@ def format_model_name(model_name, specific_params):
         return 'TreeLSTM'
     if model_name == 'unroll_gan':
         return 'Unrolled GAN'
-    if model_name == 'lstm':
-        return f'LSTM ({batch_size})'
-    return model_name
+    return f'LSTM ({batch_size})' if model_name == 'lstm' else model_name
 
 
 def format_input_description(model_name, specific_params):
@@ -148,14 +150,12 @@ def get_optimizer(model_name : str, models):
     # return None
     model = models[0]
     if model_name == 'unroll_gan':
-                return [torch.optim.Adam(models[0].parameters(), lr=1e-4, betas=(0.5, 0.999)),
-                        torch.optim.Adam(models[1].parameters(), lr=1e-3, betas=(0.5, 0.999))]
-    if model_name == 'unroll_gan':
-        return [torch.optim.Adam(models[0].parameters(), lr=1e-4, betas=(0.5, 0.999)),
-                torch.optim.Adam(models[1].parameters(), lr=1e-3, betas=(0.5, 0.999))]
-    if model_name == 'unroll_gan':
-        return [torch.optim.Adam(models[0].parameters(), lr=1e-4, betas=(0.5, 0.999)),
-                torch.optim.Adam(models[1].parameters(), lr=1e-3, betas=(0.5, 0.999))]
+        return [
+            torch.optim.Adam(model.parameters(), lr=1e-4, betas=(0.5, 0.999)),
+            torch.optim.Adam(
+                models[1].parameters(), lr=1e-3, betas=(0.5, 0.999)
+            ),
+        ]
     if model_name == 'unet':
         return torch.optim.RMSprop(model.parameters(), 0.001, weight_decay=1e-8, momentum=0.9)
     return torch.optim.SGD(model.parameters(), 0.1, 0.9)
@@ -169,7 +169,7 @@ def use_cudnn(model: str):
 
 def dispatch_by_name(model_name, stem):
     if stem not in {'resnet', 'densenet', 'tv_resnet', 'tv_densenet'}:
-        raise Exception('Invalid model type: {}'.format(stem))
+        raise Exception(f'Invalid model type: {stem}')
 
     toks = model_name.split(stem)
     model_map = TV_RESNETS if stem == 'tv_resnet'\
@@ -178,10 +178,10 @@ def dispatch_by_name(model_name, stem):
                 else DENSENET_BC
 
     if len(toks) < 2:
-        raise Exception('Not a {}: {}'.format(stem, model_name))
+        raise Exception(f'Not a {stem}: {model_name}')
     size = toks[1]
     if size not in model_map:
-        raise Exception('Invalid {}: {}'. format(stem, model_name))
+        raise Exception(f'Invalid {stem}: {model_name}')
     return model_map[size]()
 
 
@@ -855,4 +855,4 @@ def prepare_model(model_name, batch_size, use_dtr=False):
     if model_name == 'unroll_gan':
         return prepare_unrolled_gan(batch_size, use_dtr)
 
-    raise Exception('Model {} not supported'.format(model_name))
+    raise Exception(f'Model {model_name} not supported')

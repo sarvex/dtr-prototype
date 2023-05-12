@@ -27,13 +27,10 @@ def render_trace(n, tel : Telemetry, dedup_grad=True):
   while s.step():
     sl = [0] * n2
     for tid in s.material:
-      if dedup_grad:
-        if tid < n:
-          sl[tid] = 1
-        else:
-          sl[n - (tid % n) - 1] = 1.5
-      else:
+      if dedup_grad and tid < n or not dedup_grad:
         sl[tid] = 1
+      else:
+        sl[n - (tid % n) - 1] = 1.5
     slices.append(sl)
   data = np.array(slices).T
   render_array(data)
@@ -48,7 +45,7 @@ def plot_tq(n=80):
   rt = run(n, bound(n), heuristic, runtime, releases=True, rt_kwargs=rt_kwargs)
   render_trace(n, rt.telemetry, dedup_grad=True)
   plt.legend()
-  plt.title('$n = {}$, $B$ = {}, Compute-Memory Heuristic'.format(n, str(bound)))
+  plt.title(f'$n = {n}$, $B$ = {str(bound)}, Compute-Memory Heuristic')
   plt.savefig(util.get_output_path(TRACE_MOD, 'tq.png'), dpi=300)
   plt.clf()
 
@@ -61,7 +58,7 @@ def plot_treeverse(n=80):
   rt = run(n, bound(n), heuristic, runtime, releases=True, rt_kwargs=rt_kwargs)
   render_trace(n, rt.telemetry, dedup_grad=True)
   plt.legend()
-  plt.title('$n = {}$, $B$ = {}, DTR-Full Heuristic'.format(n, str(bound)))
+  plt.title(f'$n = {n}$, $B$ = {str(bound)}, DTR-Full Heuristic')
   plt.savefig(util.get_output_path(TRACE_MOD, 'treeverse.png'), dpi=300)
   plt.clf()
 
@@ -74,7 +71,7 @@ def plot_tq_local(n=80):
   rt = run(n, bound(n), heuristic, runtime, releases=True, rt_kwargs=rt_kwargs)
   render_trace(n, rt.telemetry, dedup_grad=True)
   plt.legend()
-  plt.title('$n = {}$, $B$ = {}, DTR-Local Heuristic'.format(n, str(bound)))
+  plt.title(f'$n = {n}$, $B$ = {str(bound)}, DTR-Local Heuristic')
   plt.savefig(util.get_output_path(TRACE_MOD, 'tq_local.png'), dpi=300)
   plt.clf()
 

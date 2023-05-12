@@ -31,12 +31,12 @@ def plot_solver_result(results: pandas.DataFrame, plot_file: str):
 
 
 def get_param(strategy: SolveStrategy, log_base=""):
-    base_params = {}
     if strategy == SolveStrategy.OPTIMAL_ILP_GC:
         return {'solver_cores': os.cpu_count() - 1, 'time_limit': None, 'print_to_console': False,
                 'log_file': os.path.join(log_base, "optimal_ilp_gc.log"),
                 'model_file': os.path.join(log_base, "optimal_ilp_gc.lp")}
-    return base_params
+    else:
+        return {}
 
 
 def evaluate_solved_model(result: RSResult, runner: TF2Runner, warmup, trials, batch_size):
@@ -61,7 +61,7 @@ def evaluate_solved_model(result: RSResult, runner: TF2Runner, warmup, trials, b
 
     # run actual evaluation
     timer = Timer("timer_recompute")
-    for i in tqdm(range(trials), desc="Profiling"):
+    for _ in tqdm(range(trials), desc="Profiling"):
         # TODO: Should we generate random batches on CPU and copy to GPU, inside the timing loop?
         #       This would model the overhead of loading data, and bring throughputs down to be
         #       more realistic
@@ -70,8 +70,6 @@ def evaluate_solved_model(result: RSResult, runner: TF2Runner, warmup, trials, b
         labels = tf.reshape(labels, reshape_to)
         with timer:
             loss, gradients = recompute_baseline(images, labels)
-
-        # todo assert correctness of the model by applying gradients
 
     tput = trials / timer.elapsed
     logger.info(f"{result.solve_strategy} throughput: {tput :2.4} iters/s")
@@ -175,11 +173,3 @@ def get_solutions_to_evaluate(solve_strategy: SolveStrategy, model_name: str, ba
     # Return solution in increasing order of cost
     within_budget.sort(key=lambda r: r[0].cpu)
     return within_budget
-
-    # Return min compute solution
-    min_compute = within_budget[0]
-    for result in within_budget:
-        if result[0].cpu < min_compute[0].cpu:
-            min_compute = result
-    logger.info(f"Using solution with f{min_compute[0].cpu} compute, f{min_compute[0].peak_ram} ram")
-    return min_compute

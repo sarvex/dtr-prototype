@@ -104,7 +104,7 @@ def prefix_min_np(values: np.ndarray):
 
 def roundup(round_factor: int, number: float) -> int:
     """helper function to round up a number by a factor"""
-    return int(np.ceil(float(number) / round_factor) * round_factor)
+    return int(np.ceil(number / round_factor) * round_factor)
 
 
 def dist_points(start, stop, n, min_val=0.0):

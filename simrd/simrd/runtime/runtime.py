@@ -29,17 +29,15 @@ class RuntimeBase:
 
     if len(heuristic.FEATURES.difference(self.FEATURES)) > 0:
       raise RuntimeError(
-        'Heuristic {} requires {} but this runtime only supports {}'.format(
-          str(heuristic), heuristic.FEATURES, self.FEATURES
-        ))
+          f'Heuristic {str(heuristic)} requires {heuristic.FEATURES} but this runtime only supports {self.FEATURES}'
+      )
 
     in_kwargs = set(kwargs.keys())
     my_kwargs = set(self.KWARGS.keys())
-    diff = in_kwargs.difference(my_kwargs)
-    if len(diff) > 0:
-      print('WARNING: unsupported keyword arguments {}, this runtime has (with defaults) {}'.format(
-        diff, self.KWARGS
-      ))
+    if diff := in_kwargs.difference(my_kwargs):
+      print(
+          f'WARNING: unsupported keyword arguments {diff}, this runtime has (with defaults) {self.KWARGS}'
+      )
 
   def _prepickle(self):
     self.tensor_map = None
@@ -113,12 +111,12 @@ class TelemetrizedRuntimeBase(RuntimeBase):
     key = 'remat' if rematerialize else 'model'
     for field in ['tensor', 'storage']:
       rid = t.id if field == 'tensor' else t.storage.root_id
-      self.telemetry.set(field, rid, 'last_{}_use_time'.format(key), self.clock)
-      self.telemetry.inc(field, rid, '{}_use_count'.format(key))
+      self.telemetry.set(field, rid, f'last_{key}_use_time', self.clock)
+      self.telemetry.inc(field, rid, f'{key}_use_count')
     if t.storage.meta.get('pinned', False):
       for field in ['tensor', 'storage']:
         rid = t.id if field == 'tensor' else t.storage.root_id
-        self.telemetry.inc(field, rid, '{}_use_count_pinned'.format(key))
+        self.telemetry.inc(field, rid, f'{key}_use_count_pinned')
 
   def _T_pending(self, t : Tensor):
     """
@@ -146,14 +144,14 @@ class TelemetrizedRuntimeBase(RuntimeBase):
     """
     # log compute
     if direct:
-      self.telemetry.summary['{}_compute'.format('remat' if rematerialize else 'model')] \
-        += t.op.compute
+      self.telemetry.summary[
+          f"{'remat' if rematerialize else 'model'}_compute"] += t.op.compute
 
     if rematerialize and self.stats:
       key = 'direct' if direct else 'collateral'
-      self.telemetry.inc('tensor', t.id, '{}_remat_count'.format(key))
+      self.telemetry.inc('tensor', t.id, f'{key}_remat_count')
       if not t.meta['is_alias']:
-        self.telemetry.inc('storage', t.storage.root_id, '{}_remat_count'.format(key))
+        self.telemetry.inc('storage', t.storage.root_id, f'{key}_remat_count')
       self.telemetry.inc('operator', t.op_id, 'recompute_count')
 
     if self.trace:

@@ -38,16 +38,13 @@ def run_asymptotics(base, ns, heuristic, bound, runtime, releases=True, **kwargs
 
   print('generating asymptotics data for config: {}...'.format(json.dumps(config, indent=2)))
 
-  args = []
-  for n in ns:
-    args.append([n, bound(n), heuristic, runtime, releases, kwargs])
-
+  args = [[n, bound(n), heuristic, runtime, releases, kwargs] for n in ns]
   t = time.time()
   rts = p.map(run, *zip(*args))
   t = time.time() - t
   succ_ns, succ_rts = chop_failures(ns, rts)
-  print('  - succeeded between n={} and n={}'.format(succ_ns[0], succ_ns[-1]))
-  print('  done, took {} seconds.'.format(t))
+  print(f'  - succeeded between n={succ_ns[0]} and n={succ_ns[-1]}')
+  print(f'  done, took {t} seconds.')
   results = {
     'layers': succ_ns,
     'computes': list(map(lambda rt: rt.telemetry.summary['remat_compute'], rts)),
@@ -56,24 +53,24 @@ def run_asymptotics(base, ns, heuristic, bound, runtime, releases=True, **kwargs
   }
 
   date_str = datetime.now().strftime('%Y%m%d-%H%M%S-%f')
-  base_mod = ASYMPTOTICS_MOD + '/' + base
-  out_file = '{}-{}-{}.json'.format(date_str, heuristic.ID, bound.ID)
+  base_mod = f'{ASYMPTOTICS_MOD}/{base}'
+  out_file = f'{date_str}-{heuristic.ID}-{bound.ID}.json'
   util.ensure_output_path(base_mod)
   out_path = util.get_output_path(base_mod, out_file)
   with open(out_path, 'w') as out_f:
     out_f.write(json.dumps({'config': config, 'results': results}, indent=2))
-  print('-> done, saved to "{}"'.format(out_path))
+  print(f'-> done, saved to "{out_path}"')
 
 def plot_treeverse(ns):
   def treeverse(n):
     if n == 0:
         return 0
     if n == 1:
-        return 1 + 1 # forward then backward
-    else:
-        m = n // 2
-        assert m * 2 == n
-        return m + 2 * treeverse(m)
+      return 1 + 1 # forward then backward
+    m = n // 2
+    assert m * 2 == n
+    return m + 2 * treeverse(m)
+
   tv_ns = sorted(set(map(lambda n: 2 ** (n.bit_length() - 1), ns)))
   tv_rs = [treeverse(n) - n for n in tv_ns]
   plt.plot(tv_ns, tv_rs, \
@@ -94,34 +91,38 @@ def run_heuristic_comparison(base, ns, heuristics, bound, runtime, releases=True
 
 def plot_runtime_comparison(base, heuristic, bound, out_file):
   """Compare different runtime settings on the same budget and heuristic."""
-  base_dir = util.get_output_path(ASYMPTOTICS_MOD + '/' + base, '')
+  base_dir = util.get_output_path(f'{ASYMPTOTICS_MOD}/{base}', '')
   results = []
-  paths = glob.glob(base_dir + '*.json')
+  paths = glob.glob(f'{base_dir}*.json')
   for result_path in paths:
     js = None
     with open(result_path, 'r') as jf:
       js = json.loads(jf.read())
     assert js is not None
     # if js['config']['runtime'] != 'V2': continue
-    if js['config']['heuristic'] != str(heuristic) and \
-      js['config']['heuristic'] != str(heuristic) + ' (Unoptimized)':
-      print('skipping "{}", since {} != {}'.format(result_path, js['config']['heuristic'], str(heuristic)))
+    if js['config']['heuristic'] not in [
+        str(heuristic),
+        f'{str(heuristic)} (Unoptimized)',
+    ]:
+      print(
+          f"""skipping "{result_path}", since {js['config']['heuristic']} != {str(heuristic)}"""
+      )
       continue
     if js['config']['memory'] != str(bound):
-      print('skipping "{}", since {} != {}'.format(result_path, js['config']['memory'], str(bound)))
+      print(
+          f"""skipping "{result_path}", since {js['config']['memory']} != {str(bound)}"""
+      )
       continue
-    assert len(results) == 0 or results[-1]['config']['releases'] == js['config']['releases']
-    assert len(results) == 0 or results[-1]['config']['kwargs'] == js['config']['kwargs']
+    assert (not results
+            or results[-1]['config']['releases'] == js['config']['releases'])
+    assert not results or results[-1]['config']['kwargs'] == js['config']['kwargs']
     results.append(js)
 
   for res in results:
     v1_banishing = res['config']['runtime'] == 'V1'
     if not v1_banishing:
       eager_evict = 'eager_evict' in res['config']['runtime_features']
-      if eager_evict:
-        runtime_label = 'Eager eviction'
-      else:
-        runtime_label = 'No eager eviction'
+      runtime_label = 'Eager eviction' if eager_evict else 'No eager eviction'
     else:
       runtime_label = 'Banishing'
     l = plt.plot(res['results']['layers'], res['results']['computes'], label=runtime_label, alpha=0.7, marker='X')
@@ -140,23 +141,26 @@ def plot_runtime_comparison(base, heuristic, bound, out_file):
   plt.xlabel(r'Number of Layers $n$')
   plt.ylabel(r'Additional Compute')
   plt.legend()
-  plt.title('Layers vs. Compute Overhead\n{} Heuristic, {} Memory'.format(str(heuristic), str(bound)))
+  plt.title(
+      f'Layers vs. Compute Overhead\n{str(heuristic)} Heuristic, {str(bound)} Memory'
+  )
   plt.savefig(base_dir + out_file, dpi=300)
   plt.clf()
 
 def plot_heuristic_comparison(base, bound, runtime, out_file):
   """Compare different heuristics on the same runtime and budget."""
-  base_dir = util.get_output_path(ASYMPTOTICS_MOD + '/' + base, '')
+  base_dir = util.get_output_path(f'{ASYMPTOTICS_MOD}/{base}', '')
   results = []
-  for result_path in glob.glob(base_dir + '*.json'):
+  for result_path in glob.glob(f'{base_dir}*.json'):
     js = None
     with open(result_path, 'r') as jf:
       js = json.loads(jf.read())
     assert js is not None
     if js['config']['runtime'] != runtime.ID: continue
     if js['config']['memory'] != str(bound): continue
-    assert len(results) == 0 or results[-1]['config']['releases'] == js['config']['releases']
-    assert len(results) == 0 or results[-1]['config']['ns'] == js['config']['ns']
+    assert (not results
+            or results[-1]['config']['releases'] == js['config']['releases'])
+    assert not results or results[-1]['config']['ns'] == js['config']['ns']
     results.append(js)
 
   for res in results:
@@ -178,6 +182,6 @@ def plot_heuristic_comparison(base, bound, runtime, out_file):
   plt.xlabel(r'Number of Layers $n$')
   plt.ylabel(r'Additional Compute')
   plt.legend()
-  plt.title('Layers vs. Compute Overhead ({} Memory)'.format(str(bound)))
+  plt.title(f'Layers vs. Compute Overhead ({str(bound)} Memory)')
   plt.savefig(base_dir + out_file, dpi=300)
   plt.clf()

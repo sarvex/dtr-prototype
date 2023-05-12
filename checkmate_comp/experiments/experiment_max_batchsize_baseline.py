@@ -56,7 +56,7 @@ if __name__ == "__main__":
     model_name = args.model_name
 
     # load costs, and plot optionally, if platform is not flops
-    logging.info(f"Loading costs")
+    logging.info("Loading costs")
     if args.platform == "flops":
         cost_model = None
     else:
@@ -75,10 +75,11 @@ if __name__ == "__main__":
     rg = list(range(args.batch_size_min, args.batch_size_max, args.batch_size_increment))
     for bs in tqdm(rg, desc="Event dispatch"):
         while not ray.is_initialized():
-            ray.init(temp_dir="/tmp/ray_checkpoint_" + str(str(uuid.uuid4())[:8]), redis_password=str(uuid.uuid1()),
-                     num_cpus=os.cpu_count() - 2)
-        futures = []
-
+            ray.init(
+                temp_dir=f"/tmp/ray_checkpoint_{str(str(uuid.uuid4())[:8])}",
+                redis_password=str(uuid.uuid1()),
+                num_cpus=os.cpu_count() - 2,
+            )
         # load model at batch size
         g = dfgraph_from_keras(model, batch_size=bs, cost_model=cost_model, loss_cpu_cost=0, loss_ram_cost=(4 * bs))
         bs_fwd2xcost[bs] = sum(g.cost_cpu_fwd.values()) + sum(g.cost_cpu.values())
@@ -87,14 +88,13 @@ if __name__ == "__main__":
 
         # run constant baselines
         result_dict[bs][SolveStrategy.CHEN_SQRTN_NOAP] = [solve_chen_sqrtn(g, False)]
-        futures.extend([
+        futures = [
             ray.remote(num_cpus=1)(solve_checkpoint_all).remote(g),
             ray.remote(num_cpus=1)(solve_checkpoint_all_ap).remote(g),
             ray.remote(num_cpus=1)(solve_checkpoint_last_node).remote(g),
             ray.remote(num_cpus=1)(solve_chen_sqrtn).remote(g, True),
-            ray.remote(num_cpus=1)(solve_chen_sqrtn).remote(g, False)
-        ])
-
+            ray.remote(num_cpus=1)(solve_chen_sqrtn).remote(g, False),
+        ]
         # sweep chen's greedy baseline
         chen_sqrtn_noap = result_dict[bs][SolveStrategy.CHEN_SQRTN_NOAP][0]
         greedy_eval_points = chen_sqrtn_noap.schedule_aux_data.activation_ram * (1. + np.arange(-1, 2, 0.05))

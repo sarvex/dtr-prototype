@@ -36,7 +36,9 @@ def main():
     logger.setLevel(logging.DEBUG)
     formatter = logging.Formatter("[%(asctime)s] %(levelname)s:%(name)s:%(message)s")
     # file logger
-    fh = logging.FileHandler(os.path.join(args.save, args.expname)+'.log', mode='w')
+    fh = logging.FileHandler(
+        f'{os.path.join(args.save, args.expname)}.log', mode='w'
+    )
     fh.setLevel(logging.INFO)
     fh.setFormatter(formatter)
     logger.addHandler(fh)
@@ -163,16 +165,19 @@ def main():
 
         train_pearson = metrics.pearson(train_pred, train_dataset.labels)
         train_mse = metrics.mse(train_pred, train_dataset.labels)
-        logger.info('==> Epoch {}, Train \tLoss: {}\tPearson: {}\tMSE: {}'.format(
-            epoch, train_loss, train_pearson, train_mse))
+        logger.info(
+            f'==> Epoch {epoch}, Train \tLoss: {train_loss}\tPearson: {train_pearson}\tMSE: {train_mse}'
+        )
         dev_pearson = metrics.pearson(dev_pred, dev_dataset.labels)
         dev_mse = metrics.mse(dev_pred, dev_dataset.labels)
-        logger.info('==> Epoch {}, Dev \tLoss: {}\tPearson: {}\tMSE: {}'.format(
-            epoch, dev_loss, dev_pearson, dev_mse))
+        logger.info(
+            f'==> Epoch {epoch}, Dev \tLoss: {dev_loss}\tPearson: {dev_pearson}\tMSE: {dev_mse}'
+        )
         test_pearson = metrics.pearson(test_pred, test_dataset.labels)
         test_mse = metrics.mse(test_pred, test_dataset.labels)
-        logger.info('==> Epoch {}, Test \tLoss: {}\tPearson: {}\tMSE: {}'.format(
-            epoch, test_loss, test_pearson, test_mse))
+        logger.info(
+            f'==> Epoch {epoch}, Test \tLoss: {test_loss}\tPearson: {test_pearson}\tMSE: {test_mse}'
+        )
 
 if __name__ == "__main__":
     main()

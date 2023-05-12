@@ -17,23 +17,21 @@ def dependency_parse(filepath, cp='', tokenize=True):
     print('\nDependency parsing ' + filepath)
     dirpath = os.path.dirname(filepath)
     filepre = os.path.splitext(os.path.basename(filepath))[0]
-    tokpath = os.path.join(dirpath, filepre + '.toks')
-    parentpath = os.path.join(dirpath, filepre + '.parents')
-    relpath = os.path.join(dirpath, filepre + '.rels')
+    tokpath = os.path.join(dirpath, f'{filepre}.toks')
+    parentpath = os.path.join(dirpath, f'{filepre}.parents')
+    relpath = os.path.join(dirpath, f'{filepre}.rels')
     tokenize_flag = '-tokenize - ' if tokenize else ''
-    cmd = ('java -cp %s DependencyParse -tokpath %s -parentpath %s -relpath %s %s < %s'
-           % (cp, tokpath, parentpath, relpath, tokenize_flag, filepath))
+    cmd = f'java -cp {cp} DependencyParse -tokpath {tokpath} -parentpath {parentpath} -relpath {relpath} {tokenize_flag} < {filepath}'
     os.system(cmd)
 
 
 def constituency_parse(filepath, cp='', tokenize=True):
     dirpath = os.path.dirname(filepath)
     filepre = os.path.splitext(os.path.basename(filepath))[0]
-    tokpath = os.path.join(dirpath, filepre + '.toks')
-    parentpath = os.path.join(dirpath, filepre + '.cparents')
+    tokpath = os.path.join(dirpath, f'{filepre}.toks')
+    parentpath = os.path.join(dirpath, f'{filepre}.cparents')
     tokenize_flag = '-tokenize - ' if tokenize else ''
-    cmd = ('java -cp %s ConstituencyParse -tokpath %s -parentpath %s %s < %s'
-           % (cp, tokpath, parentpath, tokenize_flag, filepath))
+    cmd = f'java -cp {cp} ConstituencyParse -tokpath {tokpath} -parentpath {parentpath} {tokenize_flag} < {filepath}'
     os.system(cmd)
 
 

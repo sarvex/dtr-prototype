@@ -92,7 +92,7 @@ class DenseNet(nn.Module):
 
     def _make_dense(self, nChannels, growthRate, nDenseBlocks, bottleneck):
         layers = []
-        for i in range(int(nDenseBlocks)):
+        for _ in range(int(nDenseBlocks)):
             if bottleneck:
                 layers.append(Bottleneck(nChannels, growthRate))
             else:

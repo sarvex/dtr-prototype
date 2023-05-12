@@ -39,9 +39,7 @@ class Corpus(object):
             idss = []
             for line in f:
                 words = line.split() + ['<eos>']
-                ids = []
-                for word in words:
-                    ids.append(self.dictionary.word2idx[word])
+                ids = [self.dictionary.word2idx[word] for word in words]
                 idss.append(torch.tensor(ids).type(torch.int64))
             ids = torch.cat(idss)
 

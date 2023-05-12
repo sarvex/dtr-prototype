@@ -80,10 +80,19 @@ MODEL_XYLIM = {
 }
 
 MODEL_TEXT = {
-    'VGG16': ['VGG16 ({})'.format(MODEL_BATCH['VGG16']), MODEL_INPUT_SHAPE['VGG16']],
-    'vgg_unet': ['U-Net ({})'.format(MODEL_BATCH['vgg_unet']), MODEL_INPUT_SHAPE['vgg_unet']],
-    'MobileNet': ['MobileNet ({})'.format(MODEL_BATCH['MobileNet']), MODEL_INPUT_SHAPE['MobileNet']],
-    'ResNet50': ['ResNet50 ({})'.format(MODEL_BATCH['ResNet50']), MODEL_INPUT_SHAPE['ResNet50']]
+    'VGG16': [f"VGG16 ({MODEL_BATCH['VGG16']})", MODEL_INPUT_SHAPE['VGG16']],
+    'vgg_unet': [
+        f"U-Net ({MODEL_BATCH['vgg_unet']})",
+        MODEL_INPUT_SHAPE['vgg_unet'],
+    ],
+    'MobileNet': [
+        f"MobileNet ({MODEL_BATCH['MobileNet']})",
+        MODEL_INPUT_SHAPE['MobileNet'],
+    ],
+    'ResNet50': [
+        f"ResNet50 ({MODEL_BATCH['ResNet50']})",
+        MODEL_INPUT_SHAPE['ResNet50'],
+    ],
 }
 
 PLOT_UNIT_RAM = 1e9
@@ -196,7 +205,7 @@ def make_legend_and_finalize(fig):
         c, m, ms = SolveStrategy.get_plot_params(strategy)
         legend_items.append(Line2D([0], [0], lw=2, label=label, color=c, marker=m, markersize=ms))
     for heuristic in PLOT_HEURISTICS:
-        heuristic = eval('{}()'.format(heuristic))
+        heuristic = eval(f'{heuristic}()')
         c, m, ms = heuristic.COLOR, heuristic.MARKER, matplotlib.rcParams['lines.markersize']
         label = str(heuristic)
         legend_items.append(Line2D([0], [0], lw=2, label=label, color=c, marker=m, markersize=ms))

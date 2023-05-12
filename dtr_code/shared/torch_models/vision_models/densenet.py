@@ -38,16 +38,11 @@ class _DenseLayer(nn.Module):
     def bn_function(self, inputs):
         # type: (List[Tensor]) -> Tensor
         concated_features = torch.cat(inputs, 1)
-        bottleneck_output = self.conv1(self.relu1(self.norm1(concated_features)))  # noqa: T484
-        return bottleneck_output
+        return self.conv1(self.relu1(self.norm1(concated_features)))
 
     # todo: rewrite when torchscript supports any
     def any_requires_grad(self, input):
-        # type: (List[Tensor]) -> bool
-        for tensor in input:
-            if tensor.requires_grad:
-                return True
-        return False
+        return any(tensor.requires_grad for tensor in input)
 
     @torch.jit.unused  # noqa: T484
     def call_checkpoint_bottleneck(self, input):
@@ -70,11 +65,7 @@ class _DenseLayer(nn.Module):
     # torchscript does not yet support *args, so we overload method
     # allowing it to take either a List[Tensor] or single Tensor
     def forward(self, input):  # noqa: F811
-        if isinstance(input, Tensor):
-            prev_features = [input]
-        else:
-            prev_features = input
-
+        prev_features = [input] if isinstance(input, Tensor) else input
         if self.memory_efficient and self.any_requires_grad(prev_features):
             if torch.jit.is_scripting():
                 raise Exception("Memory Efficient not supported in JIT")
@@ -209,9 +200,8 @@ def _load_state_dict(model, model_url, progress):
 
     state_dict = load_state_dict_from_url(model_url, progress=progress)
     for key in list(state_dict.keys()):
-        res = pattern.match(key)
-        if res:
-            new_key = res.group(1) + res.group(2)
+        if res := pattern.match(key):
+            new_key = res[1] + res[2]
             state_dict[new_key] = state_dict[key]
             del state_dict[key]
     model.load_state_dict(state_dict)

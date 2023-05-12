@@ -88,7 +88,7 @@ def g_loop(config, dset, G, D, g_optimizer, d_optimizer, criterion):
             backup = copy.deepcopy(D)
 
             with higher.innerloop_ctx(D, d_optimizer) as (functional_D, diff_D_optimizer):
-                for i in range(config.unrolled_steps):
+                for _ in range(config.unrolled_steps):
                     d_unrolled_loop_higher(config, dset, G, functional_D, diff_D_optimizer, criterion, d_gen_input=None)
 
                 g_optimizer.zero_grad()
@@ -99,11 +99,9 @@ def g_loop(config, dset, G, D, g_optimizer, d_optimizer, criterion):
                 g_error.backward()
                 g_optimizer.step()  # Only optimizes G's parameters
 
-            D.load(backup)
-            del backup
         else:
             backup = copy.deepcopy(D)
-            for i in range(config.unrolled_steps):
+            for _ in range(config.unrolled_steps):
                 d_unrolled_loop(config, dset, G, D, d_optimizer, criterion, d_gen_input=gen_input)
 
             g_fake_data = G(gen_input)
@@ -112,9 +110,8 @@ def g_loop(config, dset, G, D, g_optimizer, d_optimizer, criterion):
             g_error = criterion(dg_fake_decision, target)  # we want to fool, so pretend it's all genuine
             g_error.backward()
             g_optimizer.step()  # Only optimizes G's parameters
-            D.load(backup)
-            del backup
-
+        D.load(backup)
+        del backup
     else:
         g_fake_data = G(gen_input)
         dg_fake_decision = D(g_fake_data)

@@ -95,8 +95,7 @@ def parse(line):
 
 def parse_file(f, start=True, out_cond=OutputCondition.REMATERIALIZE, ignore_undefined_release=True) -> Graph:
     lines = [parse(line.rstrip()) for line in f]
-    errors = [x for x in lines if isinstance(x, (ParseError, Unknown))]
-    if len(errors) != 0:
+    if errors := [x for x in lines if isinstance(x, (ParseError, Unknown))]:
         print(errors)
         raise
     lines.reverse()
@@ -112,7 +111,7 @@ def parse_file(f, start=True, out_cond=OutputCondition.REMATERIALIZE, ignore_und
     g.meta['outputs'] = set()
     pop = lambda: lines.pop()
 
-    while len(lines) > 0:
+    while lines:
         l = pop()
         if isinstance(l, Constant):
             m = pop()
@@ -152,7 +151,7 @@ def parse_file(f, start=True, out_cond=OutputCondition.REMATERIALIZE, ignore_und
             for i in range(cnt):
                 alias[i] = int(alias[i].alias)
                 memory[i] = 0 if alias[i] != -1 else int(memory[i].memory)
-            args = tuple([tensor_map[x] for x in l.args])
+            args = tuple(tensor_map[x] for x in l.args)
             op, res = GOp.make(
                 g, args, int(l.time), tuple(memory), tuple(alias), 
                 l.name, tuple(l.result), {'bwd': in_bwd}
@@ -164,10 +163,10 @@ def parse_file(f, start=True, out_cond=OutputCondition.REMATERIALIZE, ignore_und
             g.schedule.append(GCompute(op))
         elif isinstance(l, Mutate):
             in_bwd |= 'backward' in l.name
-            args = tuple([tensor_map[x] for x in l.args])
-            memory = tuple([tensor_map[l.args[m]].storage_size for m in l.mutate])
-            alias = tuple([-1 for _ in l.mutate])
-            mut_names = tuple([args[m].name + '$' for m in l.mutate])
+            args = tuple(tensor_map[x] for x in l.args)
+            memory = tuple(tensor_map[l.args[m]].storage_size for m in l.mutate)
+            alias = tuple(-1 for _ in l.mutate)
+            mut_names = tuple(f'{args[m].name}$' for m in l.mutate)
             op, res = GOp.make(g, args, int(l.time), memory, alias, l.name, mut_names, {'bwd': in_bwd})
             g.schedule.append(GCompute(op))
             for i, m in enumerate(l.mutate):
@@ -192,8 +191,7 @@ def parse_file(f, start=True, out_cond=OutputCondition.REMATERIALIZE, ignore_und
             raise
 
     outputs = set()
-    for name in tensor_map:
-        t = tensor_map[name]
+    for name, t in tensor_map.items():
         if t.meta['_ref'] > 0:
             storage_name = t.alias().name if t.alias() else t.name
             if out_cond == OutputCondition.REMATERIALIZE:
@@ -202,7 +200,7 @@ def parse_file(f, start=True, out_cond=OutputCondition.REMATERIALIZE, ignore_und
                 if storage_name not in outputs:
                     g.meta['output_ram'] = g.meta.get('output_ram', 0) + t.storage_size
             else:
-                raise RuntimeError('Unsupported output condition: {}'.format(out_cond))
+                raise RuntimeError(f'Unsupported output condition: {out_cond}')
             outputs.add(storage_name)
         g.meta['outputs'] = outputs
 

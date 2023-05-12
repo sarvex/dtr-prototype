@@ -14,9 +14,7 @@ from slack_util import (generate_ping_list,
                         post_message, new_client, upload_image)
 
 def attach_duration(message, duration=None):
-    if duration is None:
-        return message
-    return '_Duration: {}_\n\n{}'.format(duration, message)
+    return message if duration is None else f'_Duration: {duration}_\n\n{message}'
 
 
 def failed_experiment_field(exp, stage_statuses, stage, duration=None, notify=None):
@@ -25,15 +23,15 @@ def failed_experiment_field(exp, stage_statuses, stage, duration=None, notify=No
         textwrap.shorten(stage_statuses[stage]['message'], width=280))
 
     if duration is not None:
-        message += '\nTime to failure: {}'.format(duration)
+        message += f'\nTime to failure: {duration}'
 
     if notify is not None:
-        message += '\nATTN: {}'.format(generate_ping_list(notify))
+        message += f'\nATTN: {generate_ping_list(notify)}'
 
     return build_field(title=exp, value=message)
 
 def send_graphs(config, info, client, output_dir):
-    img_dict = dict()
+    img_dict = {}
     for (curr_dir, _, files) in os.walk(info.exp_graphs):
         for filename in files:
             if filename.endswith('.png') or filename.endswith('.jpg'):
@@ -59,7 +57,7 @@ def main(config_dir, home_dir, output_dir):
     if 'channel_id' not in config:
         write_status(output_dir, False, 'No channel token given')
         return 1
-    
+
     success, msg, client = new_client(config)
     info = DashboardInfo(home_dir)
 
@@ -68,10 +66,7 @@ def main(config_dir, home_dir, output_dir):
         return 1
 
     slack_channel = config['channel_id']
-    description = ''
-    if 'description' in config:
-        description = config['description']
-
+    description = config['description'] if 'description' in config else ''
     info = DashboardInfo(home_dir)
 
     inactive_experiments = []     # list of titles

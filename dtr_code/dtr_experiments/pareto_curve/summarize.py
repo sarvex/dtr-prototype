@@ -13,9 +13,8 @@ def filter_params(specific_params):
     if specific_params.get('memory_budget') is not None and specific_params['memory_budget'] > 0:
         result['memory_budget'] = '{:.3g} MB'.format(specific_params['memory_budget'] * 1e-6)
 
-    if result['type'] == 'dtr':
-        if specific_params['kind'] == 'ratio':
-            result['ratio'] = specific_params['ratio']
+    if result['type'] == 'dtr' and specific_params['kind'] == 'ratio':
+        result['ratio'] = specific_params['ratio']
 
     return result
 
@@ -41,7 +40,6 @@ def summarize_results(stat):
 
 def summarize(config, data):
     indent = ' ' * 3
-    error_summary = '*ERRORS CAUGHT AT:*\n'
     summary = 'Key: median (Wall clock time (ms), GPU time (ms), slowdown (X), input memory (MB), model memory (MB), and final memory (MB)) for each input\n'
 
     failed_models = {}
@@ -59,36 +57,45 @@ def summarize(config, data):
                     failed_models[model].append(result)
                 continue
 
-            configuration_str = '; '.join([
-                indent + '_{}_: {}'.format(k, v)
-                for k, v in filter_params(stat['specific_params']).items()
-            ])
+            configuration_str = '; '.join(
+                [
+                    f'{indent}_{k}_: {v}'
+                    for k, v in filter_params(stat['specific_params']).items()
+                ]
+            )
             summaries = ', '.join([
                 res if isinstance(res, str) else '{:.3f}'.format(res)
                 for res in summarize_results(stat)
             ])
 
-            result_by_settings.append({
-                'heading' : indent + 'Configuration:\n{}\n'.format(configuration_str),
-                'summaries' : [indent*2 + '*Results*: {}\n'.format(summaries)]
-            })
+            result_by_settings.append(
+                {
+                    'heading': f'{indent}Configuration:\n{configuration_str}\n',
+                    'summaries': [indent * 2 + f'*Results*: {summaries}\n'],
+                }
+            )
 
         if result_by_settings:
-            summary += '*{}*:\n'.format(model)
+            summary += f'*{model}*:\n'
             for results in result_by_settings:
                 summary += results['heading']
                 for line in results['summaries']:
                     summary += line
                 summary += '\n'
-    if failed_models:
-        for model, settings in failed_models.items():
-            error_summary += f'*{model}*:\n'
-            for specific_params in settings:
-                error_summary += (';' + indent).join(['_{}_: {}'.format(k, v) for k, v, in specific_params.items()]) + '\n'
-            error_summary += '\n'
-        return error_summary + '\n' + summary
-    else:
+    if not failed_models:
         return summary
+    error_summary = '*ERRORS CAUGHT AT:*\n'
+    for model, settings in failed_models.items():
+        error_summary += f'*{model}*:\n'
+        for specific_params in settings:
+            error_summary += (
+                f';{indent}'.join(
+                    [f'_{k}_: {v}' for k, v, in specific_params.items()]
+                )
+                + '\n'
+            )
+        error_summary += '\n'
+    return error_summary + '\n' + summary
 
 
 def main(data_dir, config_dir, output_dir):
@@ -106,7 +113,9 @@ def main(data_dir, config_dir, output_dir):
         write_status(output_dir, True, 'success')
 
     except Exception as e:
-        write_status(output_dir, False, 'Exception encountered: ' + render_exception(e))
+        write_status(
+            output_dir, False, f'Exception encountered: {render_exception(e)}'
+        )
         return 1
 
 

@@ -21,7 +21,7 @@ def extend_simrd_config(dest_dir, sim_conf_filename, model_name, specific_params
     import model_util
     if not check_file_exists(dest_dir, sim_conf_filename):
         prepare_out_file(dest_dir, sim_conf_filename)
-        write_json(dest_dir, sim_conf_filename, dict())
+        write_json(dest_dir, sim_conf_filename, {})
 
     conf = read_json(dest_dir, sim_conf_filename)
     if model_name not in conf:
@@ -56,8 +56,9 @@ def save_trial_log(dest_dir, sim_conf_filename, model_name, specific_params, is_
     budget = specific_params['memory_budget']
     if budget < 0:
         budget = 'inf'
-    new_name = '{}-{}-{}-{}'.format(model_name, batch_size, budget,
-                                    os.path.basename(most_recent))
+    new_name = (
+        f'{model_name}-{batch_size}-{budget}-{os.path.basename(most_recent)}'
+    )
     filename = prepare_out_file(dest_dir, new_name)
     os.rename(most_recent, filename)
     if sim_conf_filename is not None:
@@ -87,9 +88,11 @@ def report_results(model_name, i, config, specific_params, num_retries,
 
     memory_budget = specific_params.get('memory_budget', -1)
     dry_run = config['dry_run']
-    save_log = use_dtr and specific_params.get('save_logs', config['save_logs']) and i == config['n_inputs'] - 1
-
-    if save_log:
+    if (
+        save_log := use_dtr
+        and specific_params.get('save_logs', config['save_logs'])
+        and i == config['n_inputs'] - 1
+    ):
         save_trial_log(config['log_dest'], config.get('simrd_config', None),
                        model_name,
                        specific_params,
@@ -173,7 +176,7 @@ def run_measurements(config, specific_params, i, model_name,
         torch.toggle_sampling(not threshold_met)
 
     def run_single_measurement(model_name, produce_model, run_model, teardown, inp,
-                               criterion, extra_params, use_dtr, use_profiling):
+                                   criterion, extra_params, use_dtr, use_profiling):
         """
         This function initializes a model and performs
         a single measurement of the model on the given input.
@@ -254,16 +257,13 @@ def run_measurements(config, specific_params, i, model_name,
             'search_time': search_time,
             'cost_time': cost_time
         }
-        if use_dtr:
-            result['cuda_time'] = cuda_time
-        else:
-            result['cuda_time'] = -1.0
+        result['cuda_time'] = cuda_time if use_dtr else -1.0
         return result
 
     def timing_loop(model_name, i, dry_run, n_reps,
-                    config, use_dtr,
-                    specific_params, extra_params,
-                    results_queue, heartbeat_queue):
+                        config, use_dtr,
+                        specific_params, extra_params,
+                        results_queue, heartbeat_queue):
         measurements = []
         print(f'Running {model_name} : {specific_params}')
 
@@ -291,7 +291,7 @@ def run_measurements(config, specific_params, i, model_name,
 
             progress = tqdm(range(dry_run + n_reps))
             for j in progress:
-                progress.set_description(f'Rep [{j}]' + '' if j > dry_run else f'Dry run [{j}]')
+                progress.set_description(f'Rep [{j}]' if j > dry_run else f'Dry run [{j}]')
                 gc.collect()
                 # Annotate where the final run starts in the log
                 if save_log and j == dry_run + n_reps - 1:
@@ -367,7 +367,7 @@ def main(config_dir, experiment_mode, model_name, input_idx, params_file, out_fi
         results_queue = mp.Queue()
         heartbeat_queue = mp.Queue()
         remaining_reps = n_reps
-        for attempt in range(max_retries):
+        for _ in range(max_retries):
             proc = mp.Process(target=run_measurements,
                               args=(config, specific_params, i,
                                     model_name,

@@ -16,12 +16,14 @@ def print_log(msg, dec_char='*'):
 
 def validate_json(dirname, *fields, filename='status.json'):
     if not check_file_exists(dirname, filename):
-        return {'success': False, 'message': 'No {} in {}'.format(filename, dirname)}
+        return {'success': False, 'message': f'No {filename} in {dirname}'}
     fp = read_json(dirname, filename)
     for required_field in fields:
         if required_field not in fp:
-            return {'success': False,
-                    'message': '{} in {} has no \'{}\' field'.format(filename, dirname, required_field)}
+            return {
+                'success': False,
+                'message': f"{filename} in {dirname} has no \'{required_field}\' field",
+            }
     return fp
 
 def check_file_exists(dirname, filename):
@@ -47,8 +49,7 @@ def prepare_out_file(dirname, filename):
 def read_json(dirname, filename):
     dirname = os.path.expanduser(dirname)
     with open(os.path.join(dirname, filename)) as json_file:
-        data = json.load(json_file)
-        return data
+        return json.load(json_file)
 
 
 def write_json(dirname, filename, obj):
@@ -180,8 +181,7 @@ def invoke_main(main_func, *arg_names):
     parser = argparse.ArgumentParser()
     for arg_name in arg_names:
         name = arg_name
-        parser.add_argument('--{}'.format(name.replace('_', '-')),
-                            required=True, type=str)
+        parser.add_argument(f"--{name.replace('_', '-')}", required=True, type=str)
     args = parser.parse_args()
     ret = main_func(*[getattr(args, name) for name in arg_names])
     if ret is None:

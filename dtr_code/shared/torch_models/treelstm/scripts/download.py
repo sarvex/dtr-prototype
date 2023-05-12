@@ -19,19 +19,19 @@ def download(url, dirpath):
     try:
         u = urllib2.urlopen(url)
     except Exception as e:
-        print("URL %s failed to open" % url)
+        print(f"URL {url} failed to open")
         raise Exception
     try:
         f = open(filepath, 'wb')
     except Exception as e:
-        print("Cannot write %s" % filepath)
+        print(f"Cannot write {filepath}")
         raise Exception
     try:
         filesize = int(u.info().getheaders("Content-Length")[0])
     except Exception as e:
-        print("URL %s failed to report length" % url)
+        print(f"URL {url} failed to report length")
         raise Exception
-    print("Downloading: %s Bytes: %s" % (filename, filesize))
+    print(f"Downloading: {filename} Bytes: {filesize}")
 
     downloaded = 0
     block_sz = 8192
@@ -45,9 +45,10 @@ def download(url, dirpath):
             print('', end='\r')
         downloaded += len(buf)
         f.write(buf)
-        status = (("[%-" + str(status_width + 1) + "s] %3.2f%%") %
-                  ('=' * int(downloaded / filesize * status_width) + '>',
-                   downloaded * 100. / filesize))
+        status = f"[%-{str(status_width + 1)}s] %3.2f%%" % (
+            '=' * int(downloaded / filesize * status_width) + '>',
+            downloaded * 100.0 / filesize,
+        )
         print(status, end='')
         sys.stdout.flush()
     f.close()
@@ -55,7 +56,7 @@ def download(url, dirpath):
 
 
 def unzip(filepath):
-    print("Extracting: " + filepath)
+    print(f"Extracting: {filepath}")
     dirpath = os.path.dirname(filepath)
     with zipfile.ZipFile(filepath) as zf:
         zf.extractall(dirpath)

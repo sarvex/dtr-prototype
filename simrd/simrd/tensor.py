@@ -87,12 +87,12 @@ class Tensor:
     self.defined  = False
     self.id       = tensor_id
     self.op_id    = op_id
-    self.name     = name if name != None else 'x{}'.format(self.id)
+    self.name = name if name != None else f'x{self.id}'
     self.meta     = {}
 
     # NOTE: we assume every created Tensor has 1 external/model ref initially
     assert self not in self.storage.tensors
-  
+
     if len(self.storage.tensors) == 0:
       self.storage.root_id = self.id
 

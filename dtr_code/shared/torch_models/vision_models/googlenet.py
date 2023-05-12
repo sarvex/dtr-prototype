@@ -37,27 +37,26 @@ def googlenet(pretrained=False, progress=True, **kwargs):
         transform_input (bool): If True, preprocesses the input according to the method with which it
             was trained on ImageNet. Default: *False*
     """
-    if pretrained:
-        if 'transform_input' not in kwargs:
-            kwargs['transform_input'] = True
-        if 'aux_logits' not in kwargs:
-            kwargs['aux_logits'] = False
-        if kwargs['aux_logits']:
-            warnings.warn('auxiliary heads in the pretrained googlenet model are NOT pretrained, '
-                          'so make sure to train them')
-        original_aux_logits = kwargs['aux_logits']
-        kwargs['aux_logits'] = True
-        kwargs['init_weights'] = False
-        model = GoogLeNet(**kwargs)
-        state_dict = load_state_dict_from_url(model_urls['googlenet'],
-                                              progress=progress)
-        model.load_state_dict(state_dict)
-        if not original_aux_logits:
-            model.aux_logits = False
-            del model.aux1, model.aux2
-        return model
-
-    return GoogLeNet(**kwargs)
+    if not pretrained:
+        return GoogLeNet(**kwargs)
+    if 'transform_input' not in kwargs:
+        kwargs['transform_input'] = True
+    if 'aux_logits' not in kwargs:
+        kwargs['aux_logits'] = False
+    if kwargs['aux_logits']:
+        warnings.warn('auxiliary heads in the pretrained googlenet model are NOT pretrained, '
+                      'so make sure to train them')
+    original_aux_logits = kwargs['aux_logits']
+    kwargs['aux_logits'] = True
+    kwargs['init_weights'] = False
+    model = GoogLeNet(**kwargs)
+    state_dict = load_state_dict_from_url(model_urls['googlenet'],
+                                          progress=progress)
+    model.load_state_dict(state_dict)
+    if not original_aux_logits:
+        model.aux_logits = False
+        del model.aux1, model.aux2
+    return model
 
 
 class GoogLeNet(nn.Module):
@@ -109,7 +108,7 @@ class GoogLeNet(nn.Module):
 
     def _initialize_weights(self):
         for m in self.modules():
-            if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
+            if isinstance(m, (nn.Conv2d, nn.Linear)):
                 import scipy.stats as stats
                 X = stats.truncnorm(-2, 2, scale=0.01)
                 values = torch.as_tensor(X.rvs(m.weight.numel()), dtype=m.weight.dtype)
@@ -152,22 +151,14 @@ class GoogLeNet(nn.Module):
         x = self.inception4a(x)
         # N x 512 x 14 x 14
         aux_defined = self.training and self.aux_logits
-        if aux_defined:
-            aux1 = self.aux1(x)
-        else:
-            aux1 = None
-
+        aux1 = self.aux1(x) if aux_defined else None
         x = self.inception4b(x)
         # N x 512 x 14 x 14
         x = self.inception4c(x)
         # N x 512 x 14 x 14
         x = self.inception4d(x)
         # N x 528 x 14 x 14
-        if aux_defined:
-            aux2 = self.aux2(x)
-        else:
-            aux2 = None
-
+        aux2 = self.aux2(x) if aux_defined else None
         x = self.inception4e(x)
         # N x 832 x 14 x 14
         x = self.maxpool4(x)
@@ -199,12 +190,11 @@ class GoogLeNet(nn.Module):
         x = self._transform_input(x)
         x, aux1, aux2 = self._forward(x)
         aux_defined = self.training and self.aux_logits
-        if torch.jit.is_scripting():
-            if not aux_defined:
-                warnings.warn("Scripted GoogleNet always returns GoogleNetOutputs Tuple")
-            return GoogLeNetOutputs(x, aux2, aux1)
-        else:
+        if not torch.jit.is_scripting():
             return self.eager_outputs(x, aux2, aux1)
+        if not aux_defined:
+            warnings.warn("Scripted GoogleNet always returns GoogleNetOutputs Tuple")
+        return GoogLeNetOutputs(x, aux2, aux1)
 
 
 class Inception(nn.Module):
@@ -238,8 +228,7 @@ class Inception(nn.Module):
         branch3 = self.branch3(x)
         branch4 = self.branch4(x)
 
-        outputs = [branch1, branch2, branch3, branch4]
-        return outputs
+        return [branch1, branch2, branch3, branch4]
 
     def forward(self, x):
         outputs = self._forward(x)

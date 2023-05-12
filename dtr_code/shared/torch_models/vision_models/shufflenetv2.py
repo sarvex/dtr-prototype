@@ -104,12 +104,14 @@ class ShuffleNetV2(nn.Module):
 
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
-        stage_names = ['stage{}'.format(i) for i in [2, 3, 4]]
+        stage_names = [f'stage{i}' for i in [2, 3, 4]]
         for name, repeats, output_channels in zip(
                 stage_names, stages_repeats, self._stage_out_channels[1:]):
             seq = [inverted_residual(input_channels, output_channels, 2)]
-            for i in range(repeats - 1):
-                seq.append(inverted_residual(output_channels, output_channels, 1))
+            seq.extend(
+                inverted_residual(output_channels, output_channels, 1)
+                for _ in range(repeats - 1)
+            )
             setattr(self, name, nn.Sequential(*seq))
             input_channels = output_channels
 
@@ -144,10 +146,9 @@ def _shufflenetv2(arch, pretrained, progress, *args, **kwargs):
     if pretrained:
         model_url = model_urls[arch]
         if model_url is None:
-            raise NotImplementedError('pretrained {} is not supported as of now'.format(arch))
-        else:
-            state_dict = load_state_dict_from_url(model_url, progress=progress)
-            model.load_state_dict(state_dict)
+            raise NotImplementedError(f'pretrained {arch} is not supported as of now')
+        state_dict = load_state_dict_from_url(model_url, progress=progress)
+        model.load_state_dict(state_dict)
 
     return model
 

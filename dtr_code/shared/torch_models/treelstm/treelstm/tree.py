@@ -3,7 +3,7 @@ class Tree(object):
     def __init__(self, x=None):
         self.x = x
         self.num_children = 0
-        self.children = list()
+        self.children = []
     
     def __init__(self, x, children):
         self.x = x
@@ -23,9 +23,7 @@ class Tree(object):
     def size(self):
         if hasattr(self, '_size') and getattr(self, '_size'):
             return self._size
-        count = 1
-        for i in range(self.num_children):
-            count += self.children[i].size()
+        count = 1 + sum(self.children[i].size() for i in range(self.num_children))
         self._size = count
         return self._size
 

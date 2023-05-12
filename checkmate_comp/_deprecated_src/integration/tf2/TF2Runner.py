@@ -65,7 +65,7 @@ class TF2Runner:
                 input_layers = sort_by_dep_order(op.arg_regs.keys(), self.g.args[idx])
                 if self.debug: self.logger.debug(f"\t⮑ {[op.arg_regs[x] for x in input_layers]}")
                 inputs = [regs[op.arg_regs[arg_layer_id]] for arg_layer_id in input_layers]
-                inputs = inputs if len(inputs) > 0 else [input_val]  # if first node
+                inputs = inputs if inputs else [input_val]
                 if len(inputs) > 1:
                     regs[op.out_register] = tf.stop_gradient(layer(inputs))
                 else:

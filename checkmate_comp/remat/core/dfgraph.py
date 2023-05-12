@@ -54,18 +54,14 @@ class DFGraph:
         values.extend(othervals)
         values = np.array(values)
         intvalues = np.array(values, dtype=int)
-        if not np.allclose(intvalues, values):  # GCD is 1 if values are not integral
-            return 1
-        return np.gcd.reduce(intvalues)
+        return 1 if not np.allclose(intvalues, values) else np.gcd.reduce(intvalues)
 
     def cpu_gcd(self, *othervals):
         values = list(self.cost_cpu.values())
         values.extend(othervals)
         values = np.array(values)
         intvalues = np.array(values, dtype=int)
-        if not np.allclose(intvalues, values):  # GCD is 1 if values are not integral
-            return 1
-        return np.gcd.reduce(intvalues)
+        return 1 if not np.allclose(intvalues, values) else np.gcd.reduce(intvalues)
 
     @property
     @lru_cache(maxsize=None)
@@ -92,7 +88,7 @@ class DFGraph:
             unvisited = set(V)
             adj_list = edge_to_adj_list(E, convert_undirected=True)
             components = 0
-            while len(unvisited) > 0:
+            while unvisited:
                 v = unvisited.pop()
                 visited = dfs(adj_list, v, [])
                 for v in visited:
@@ -117,8 +113,7 @@ class DFGraph:
     @property
     def checkpoint_set_all(self) -> set:
         E = list(self.edge_list_fwd)
-        V = set([i for (i, j) in E] + [j for (i, j) in E])
-        return V
+        return set([i for (i, j) in E] + [j for (i, j) in E])
 
     @property
     @lru_cache(maxsize=None)
@@ -198,7 +193,10 @@ class DFGraph:
 
     def max_degree_ram(self):
         """compute minimum memory needed for any single node (ie inputs and outputs)"""
-        return max([sum([self.cost_ram[u] for u in self.predecessors(v)]) + self.cost_ram[v] for v in self.vfwd])
+        return max(
+            sum(self.cost_ram[u] for u in self.predecessors(v)) + self.cost_ram[v]
+            for v in self.vfwd
+        )
 
 
 def gen_linear_graph(forward_node_count, **kwargs):

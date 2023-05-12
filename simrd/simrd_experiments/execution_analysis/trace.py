@@ -114,22 +114,18 @@ class State:
     return True
 
   def step(self, steps=1):
-    for i in range(steps):
-      if not self._step():
-        return False
-    return True
+    return all(self._step() for _ in range(steps))
 
   def tensor_name(self, tid):
     op_id = self.telemetry.get('tensor', tid, 'op_id')
     op_name = self.telemetry.get('operator', op_id, 'name')
-    if op_name == None:
+    if op_name is None:
       op_name = self.telemetry.get('tensor', tid, 'name')
     if self.telemetry.get('operator', op_id, 'outputs') > 1:
       index = self.telemetry.get('tensor', tid, 'index')
-      name = '{}.{}'.format(op_name, index)
+      return f'{op_name}.{index}'
     else:
-      name = op_name
-    return name
+      return op_name
 
   def render_dot(self, filename=None, **kwargs):
     """
@@ -144,7 +140,7 @@ class State:
     g.attr(compound='true', rankdir='LR')
 
     for call_id in self.call_groups:
-      with g.subgraph(name='cluster_{}'.format(call_id)) as gg:
+      with g.subgraph(name=f'cluster_{call_id}') as gg:
         gg.attr(style='filled', color='lightgrey')
         for tid in self.call_groups[call_id]:
           if tid in self.material:
@@ -176,7 +172,7 @@ class State:
           c_op_ids.add(c_op_id)
         else:
           continue
-        c_cluster = 'cluster_{}'.format(c_op_id)
+        c_cluster = f'cluster_{c_op_id}'
         args = {}
         if self.telemetry.get('tensor', c, 'is_alias'):
           args['style'] = 'dashed'
@@ -191,16 +187,12 @@ def analyze_trace(tel : Telemetry):
   s = State(tel)
   data = []
   while s.step():
-    pinned_mem       = 0
-    locked_mem       = 0
-    evictable_mem    = 0
     total_mem        = 0
-    for tid in s.pinned:
-      pinned_mem += s.telemetry.get('tensor', tid, 'size')
-    for tid in s.locked:
-      locked_mem += s.telemetry.get('tensor', tid, 'size')
-    for tid in s.material.difference(s.pinned).difference(s.locked):
-      evictable_mem += s.telemetry.get('tensor', tid, 'size')
+    pinned_mem = sum(s.telemetry.get('tensor', tid, 'size') for tid in s.pinned)
+    locked_mem = sum(s.telemetry.get('tensor', tid, 'size') for tid in s.locked)
+    evictable_mem = sum(
+        s.telemetry.get('tensor', tid, 'size')
+        for tid in s.material.difference(s.pinned).difference(s.locked))
     total_mem = pinned_mem + locked_mem + evictable_mem
     mem_pressure = total_mem + s.pressure
     data.append([s.time, pinned_mem, locked_mem, evictable_mem, total_mem, mem_pressure])
@@ -217,18 +209,16 @@ def analyze_max_pinned(tel : Telemetry, filename, render_graph=False):
       max_pinned_memory = pinned_mem
       max_pinned_step = s.time_idx
       max_pinned_time = s.time
-  print('maximum amount of pinned memory: {} at step {} (time = {})'.format(
-    max_pinned_memory, max_pinned_step, max_pinned_time
-  ))
+  print(
+      f'maximum amount of pinned memory: {max_pinned_memory} at step {max_pinned_step} (time = {max_pinned_time})'
+  )
   # now graph
   s = State(tel)
   while s.step():
     if s.time_idx == max_pinned_step:
       if render_graph:
         s.render_dot(filename)
-      pinned_data = []
-      for tid in s.pinned:
-        pinned_data.append(s.telemetry.tensor[tid])
+      pinned_data = [s.telemetry.tensor[tid] for tid in s.pinned]
       stats = pd.DataFrame(pinned_data, columns=Telemetry.TENSOR_STATS)
   return stats
 
@@ -243,18 +233,16 @@ def analyze_max_locked(tel : Telemetry, filename, render_graph=False):
       max_locked_memory = locked_mem
       max_locked_step = s.time_idx
       max_locked_time = s.time
-  print('maximum amount of locked memory: {} at step {} (time = {})'.format(
-    max_locked_memory, max_locked_step, max_locked_time
-  ))
+  print(
+      f'maximum amount of locked memory: {max_locked_memory} at step {max_locked_step} (time = {max_locked_time})'
+  )
   # now graph
   s = State(tel)
   while s.step():
     if s.time_idx == max_locked_step:
       if render_graph:
         s.render_dot(filename)
-      pinned_data = []
-      for tid in s.pinned:
-        pinned_data.append(s.telemetry.tensor[tid])
+      pinned_data = [s.telemetry.tensor[tid] for tid in s.pinned]
       stats = pd.DataFrame(pinned_data, columns=Telemetry.TENSOR_STATS)
   return stats
 

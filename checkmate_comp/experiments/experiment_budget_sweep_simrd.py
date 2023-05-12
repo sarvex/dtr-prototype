@@ -65,9 +65,9 @@ def prefix_min_np(values: np.ndarray):
 
 
 def run_simrd(g, heuristic, budgets, liveness):
-    logger.info('Evaluating simrd ({}), liveness {}...'.format(
-        type(heuristic).__name__, 'enabled' if liveness else 'disabled'
-    ))
+    logger.info(
+        f"Evaluating simrd ({type(heuristic).__name__}), liveness {'enabled' if liveness else 'disabled'}..."
+    )
     futures = []
     remote_simrd = ray.remote(num_cpus=NUM_ILP_CORES)(solve_simrd).remote
     for b in budgets:
@@ -76,8 +76,7 @@ def run_simrd(g, heuristic, budgets, liveness):
             thrash=2.0, liveness=liveness
         )
         futures.append(future)
-    results = get_futures(futures, desc='simrd ({})'.format(type(heuristic).__name__))
-    return results
+    return get_futures(futures, desc=f'simrd ({type(heuristic).__name__})')
 
 
 if __name__ == "__main__":
@@ -100,7 +99,7 @@ if __name__ == "__main__":
     model_name = args.model_name
 
     # load costs, and plot optionally, if platform is not flops
-    logger.info(f"Loading costs")
+    logger.info("Loading costs")
     if args.platform == "flops":
         cost_model = None
     else:
@@ -119,14 +118,14 @@ if __name__ == "__main__":
     model = get_keras_model(model_name, input_shape=args.input_shape)
     g = dfgraph_from_keras(model, batch_size=args.batch_size, cost_model=cost_model,
                            loss_cpu_cost=0, loss_ram_cost=(4 * args.batch_size))
-                    
+
     result_dict = pickle.load((log_base / 'result_dict.pickle').open('rb'))
     simrd_eval_points = pickle.load((log_base / 'simrd_eval_points.pickle').open('rb'))
 
-    simrd_results = []
-    for heuristic in SIMRD_HEURISTICS:
-        simrd_results.append(run_simrd(g, heuristic, simrd_eval_points, SIMRD_LIVENESS))
-
+    simrd_results = [
+        run_simrd(g, heuristic, simrd_eval_points, SIMRD_LIVENESS)
+        for heuristic in SIMRD_HEURISTICS
+    ]
     # save simrd results and heuristics used
     pickle.dump(simrd_results, (log_base / 'simrd_results.pickle').open('wb'), \
         protocol=pickle.HIGHEST_PROTOCOL)

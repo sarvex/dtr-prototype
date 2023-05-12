@@ -5,8 +5,8 @@ BOUNDS = {}
 def register_bound(cls):
   cls.ID = len(BOUNDS)
   b_str = str(cls())
-  assert b_str not in BOUNDS, \
-    'cannot have the same description as an existing bound: {}'.format(cls)
+  assert (b_str not in BOUNDS
+          ), f'cannot have the same description as an existing bound: {cls}'
   BOUNDS[b_str] = cls
   return cls
 

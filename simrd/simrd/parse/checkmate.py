@@ -42,17 +42,17 @@ def from_dfgraph(dfg : DFGraph, liveness_analysis=True) -> Graph:
 
   # add operators in topological order
   for v in topo:
-    args = tuple([tensor_map[u] for u in dfg.args[v]])
-    op, (tensor,) = GOp.make(
-      g,
-      args,
-      float(dfg.cost_cpu[v]),
-      (int(dfg.cost_ram[v]),),
-      (-1,),
-      'f{}'.format(v),
-      ('x{}'.format(v),),
-      {},
-      make_uname=False
+    args = tuple(tensor_map[u] for u in dfg.args[v])
+    op, (tensor, ) = GOp.make(
+        g,
+        args,
+        float(dfg.cost_cpu[v]),
+        (int(dfg.cost_ram[v]), ),
+        (-1, ),
+        f'f{v}',
+        (f'x{v}', ),
+        {},
+        make_uname=False,
     )
     op_map[v] = op
     tensor_map[v] = tensor
@@ -67,8 +67,7 @@ def from_dfgraph(dfg : DFGraph, liveness_analysis=True) -> Graph:
   for (i, v) in enumerate(topo):
     schedule.append(GCompute(op_map[v]))
     if liveness_analysis:
-      for u in can_free[i]:
-        schedule.append(GRelease(tensor_map[u]))
+      schedule.extend(GRelease(tensor_map[u]) for u in can_free[i])
   g.schedule = schedule
 
   return g

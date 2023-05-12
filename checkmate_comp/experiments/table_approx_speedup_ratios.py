@@ -11,7 +11,7 @@ dfs = []
 for path in (remat_data_dir() / 'budget_sweep').glob('**/slowdowns.csv'):
     slowdown_df = pd.read_csv(path)
     matches = exp_name_re.match(path.parents[0].name)
-    model_name = matches.group('model_name')
+    model_name = matches['model_name']
     slowdown_df['Model name'] = [model_name] * len(slowdown_df)
     dfs.append(slowdown_df)
 df = pd.concat(dfs)
@@ -33,7 +33,7 @@ for model in ['p32xlarge_vgg_unet_32_None', 'p32xlarge_ResNet50_256_None', 'p32x
         if 'Model is infeasible' in file_contents:
             continue
         match = ilp_matcher.search(file_contents)
-        ilp_runtimes.append(float(match.group('ilp_runtime')))
+        ilp_runtimes.append(float(match['ilp_runtime']))
 
     lp_runtimes = []
     for path in (remat_data_dir() / 'budget_sweep' / 'p32xlarge_vgg_unet_32_None' / 'lp_det_05').glob('./*.log'):
@@ -42,9 +42,9 @@ for model in ['p32xlarge_vgg_unet_32_None', 'p32xlarge_ResNet50_256_None', 'p32x
         if 'Model is infeasible' in file_contents:
             continue
         match = lp_matcher.search(file_contents)
-        lp_runtimes.append(float(match.group('lp_runtime')))
-    
-    
+        lp_runtimes.append(float(match['lp_runtime']))
+            
+
     print("Speedup for {} is {:0.2f} ({:.2f} versus {:.2f}, count {} vs {})".format(model, np.median(ilp_runtimes) / np.median(lp_runtimes), np.mean(ilp_runtimes), np.mean(lp_runtimes), len(ilp_runtimes), len(lp_runtimes)))
     ilp_runtime_dict[model] = ilp_runtimes
     lp_runtime_dict[model] = lp_runtimes

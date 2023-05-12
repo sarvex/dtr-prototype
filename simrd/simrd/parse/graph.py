@@ -21,10 +21,10 @@ class GOp:
       assert self.alias[i] == -1 or self.size[i] == 0
 
   def is_aliasing(self) -> bool:
-    return any([a >= 0 for a in self.alias])
+    return any(a >= 0 for a in self.alias)
 
   def all_aliasing(self) -> bool:
-    return all([a >= 0 for a in self.alias])
+    return all(a >= 0 for a in self.alias)
 
   def is_tuple(self) -> bool:
     return len(self.result) > 1
@@ -42,8 +42,9 @@ class GOp:
            meta : dict,
            make_uname : bool = True) -> ('GOp', Tuple['GTensor']):
     assert len(size) == len(alias) == len(res_names)
-    uname = '{}/{}'.format(name, g._next_id()) if make_uname else name
-    result = tuple([GTensor(None, i, res_names[i], None) for i in range(len(res_names))])
+    uname = f'{name}/{g._next_id()}' if make_uname else name
+    result = tuple(
+        GTensor(None, i, res_names[i], None) for i in range(len(res_names)))
     op = GOp(cost, size, alias, args, result, uname, meta)
     for r in result:
       r.op = op
@@ -76,10 +77,7 @@ class GCompute:
   op : 'GOp'
 
   def __str__(self):
-    return '({},)=Compute({})'.format(
-      ','.join([r.name for r in self.op.result]), 
-      self.op.name
-    )
+    return f"({','.join([r.name for r in self.op.result])},)=Compute({self.op.name})"
 
 @attr.s(auto_attribs=True)
 class GGet:
@@ -88,14 +86,14 @@ class GGet:
 
   def __str__(self):
     op = 'Pin' if self.pin else 'Get'
-    return '{}({})'.format(op, self.tensor.name)
+    return f'{op}({self.tensor.name})'
 
 @attr.s(auto_attribs=True)
 class GRelease:
   tensor : 'GTensor'
 
   def __str__(self):
-    return 'Release({})'.format(self.tensor.name)
+    return f'Release({self.tensor.name})'
 
 class Graph:
   def __init__(self):
@@ -125,7 +123,7 @@ class Graph:
       self.fwd_ops[op.name] = op
     for ti in op.args:
       assert ti.name in self.tensors
-    op_parents = set([ti.op.name for ti in op.args])
+    op_parents = {ti.op.name for ti in op.args}
     for ps in op_parents:
       self.op_children[ps].add(op.name)
     self.op_parents[op.name] = op_parents
@@ -164,7 +162,7 @@ class Graph:
             cmd.op.alias,
             cmd.op.name
           )
-          res = rt.compute(args, rt_op, names=tuple([o.name for o in cmd.op.result]))
+          res = rt.compute(args, rt_op, names=tuple(o.name for o in cmd.op.result))
           for i, r in enumerate(res):
             assert cmd.op.result[i].name not in tensor_map
             tensor_map[cmd.op.result[i].name] = r
@@ -181,6 +179,7 @@ class Graph:
         elif isinstance(cmd, GRelease):
           assert cmd.tensor.name in tensor_map
           rt.release(tensor_map[cmd.tensor.name])
+
     return f
 
 def rewrite_collapse_aliases(g : 'Graph') -> 'Graph':
@@ -197,19 +196,22 @@ def rewrite_collapse_aliases(g : 'Graph') -> 'Graph':
     op = g.ops[op_name]
     if op.is_aliasing():
       if not op.all_aliasing():
-        raise RuntimeError(
-          'cannot collapse aliases, {} is not all aliasing'
-          .format(op)
-        )
+        raise RuntimeError(f'cannot collapse aliases, {op} is not all aliasing')
       for r in op.result:
         tensor_map[r.name] = tensor_map[r.alias().name]
     else:
       # keep operator
       args = [tensor_map[x.name] for x in op.args]
       op_new, res = GOp.make(
-        g_r, args, op.cost, op.size, op.alias,
-        op.name, tuple([o.name for o in op.result]), op.meta,
-        make_uname=False
+          g_r,
+          args,
+          op.cost,
+          op.size,
+          op.alias,
+          op.name,
+          tuple(o.name for o in op.result),
+          op.meta,
+          make_uname=False,
       )
       for r in res:
         tensor_map[r.name] = r
@@ -249,7 +251,7 @@ def rewrite_merge_tuples(g : 'Graph') -> 'Graph':
     op = g.ops[op_name]
     assert not op.is_aliasing()
     if op.is_tuple():
-      args = tuple([tensor_map[x.name] for x in op.args])
+      args = tuple(tensor_map[x.name] for x in op.args)
       op_new, res = GOp.make(
         g_r, args, op.cost, (sum(op.size),), (-1,),
         op.name, ('+'.join([o.name for o in op.result]),), op.meta,
@@ -257,7 +259,6 @@ def rewrite_merge_tuples(g : 'Graph') -> 'Graph':
       )
       for r in op.result:
         tensor_map[r.name] = res[0]
-      op_map[op.name] = op_new
     else:
       # keep
       args = [tensor_map[x.name] for x in op.args]
@@ -267,8 +268,7 @@ def rewrite_merge_tuples(g : 'Graph') -> 'Graph':
         make_uname=False
       )
       tensor_map[res[0].name] = res[0]
-      op_map[op.name] = op_new
-
+    op_map[op.name] = op_new
   for cmd in g.schedule:
     if isinstance(cmd, GCompute):
       op_new = op_map[cmd.op.name]
@@ -306,15 +306,21 @@ def rewrite_constant_elim(g : 'Graph') -> 'Graph':
     op = g.ops[op_name]
     if op_name.split('/')[0] == GOp.CONST_NAME:
       args = [tensor_map[x.name] for x in op.args]
-      assert len(args) == 0
+      assert not args
       g_r.meta['constant_ram'] += sum(op.size)
     else:
       # keep operator
       args = [tensor_map[x.name] for x in op.args if x.name in tensor_map]
       op_new, res = GOp.make(
-        g_r, args, op.cost, op.size, op.alias,
-        op.name, tuple([o.name for o in op.result]), op.meta,
-        make_uname=False
+          g_r,
+          args,
+          op.cost,
+          op.size,
+          op.alias,
+          op.name,
+          tuple(o.name for o in op.result),
+          op.meta,
+          make_uname=False,
       )
       for r in res:
         tensor_map[r.name] = r

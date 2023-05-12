@@ -8,8 +8,7 @@ def get_attr(node, name, typ="ints"):
     out = []
     for attr in node.attribute:
         if attr.name == name:
-            for val in eval("attr.{}".format(typ)):
-                out.append(val)
+            out.extend(iter(eval(f"attr.{typ}")))
     return tuple(out)
 
 
@@ -32,7 +31,7 @@ def conv_hook(node, inputs, outputs):
         W = int((inputs[2] - node.dilation_rate[1] * (node.kernel_size[1] - 1) - 1) /
                 node.strides[1] + 1)
         newshape = (outputs[0], H, W, outputs[3])
-        print("Inferred Conv2D shape: {} => {}".format(outputs, newshape))
+        print(f"Inferred Conv2D shape: {outputs} => {newshape}")
         outputs = newshape
 
     mem_cost = np.prod(outputs) * MEMORY_MULTIPLIER
@@ -84,7 +83,7 @@ def pool_hook(node, inputs, outputs):
 def add_hook(node, inputs, outputs):
     assert len(inputs) > 1, "add needs more than one input"
     mem_cost = np.prod(outputs) * MEMORY_MULTIPLIER
-    ops = sum([np.prod(inp) for inp in inputs])
+    ops = sum(np.prod(inp) for inp in inputs)
     return ops, mem_cost
 
 
@@ -213,18 +212,17 @@ def op_hook(layer, batch_size=1):
     if type(input_shapes) == tuple:
         inputs = add_batch(input_shapes, batch_size)
     elif type(input_shapes) == list:
-        inputs = []
-        for input_shape in input_shapes:
-            inputs.append(add_batch(input_shape, batch_size))
+        inputs = [add_batch(input_shape, batch_size) for input_shape in input_shapes]
     else:
         raise ValueError("layer.input_shapes must be tuple or list")
 
     if type(output_shapes) == tuple:
         outputs = add_batch(output_shapes, batch_size)
     elif type(output_shapes) == list:
-        outputs = []
-        for output_shape in output_shapes:
-            outputs.append(add_batch(output_shape, batch_size))
+        outputs = [
+            add_batch(output_shape, batch_size)
+            for output_shape in output_shapes
+        ]
     else:
         raise ValueError("layer.output_shape must be tuple or list")
 
@@ -234,8 +232,13 @@ def op_hook(layer, batch_size=1):
               "input shape:", inputs, "output shape:", outputs)
 
     if None in inputs or None in outputs:
-        print("WARN: Layer of type {} has None in shape".format(type(layer)),
-              "input shape:", inputs, "output shape:", outputs)
+        print(
+            f"WARN: Layer of type {type(layer)} has None in shape",
+            "input shape:",
+            inputs,
+            "output shape:",
+            outputs,
+        )
 
     ops, mem_cost = hooks[layer.__class__.__name__](layer, inputs, outputs)
     return ops, mem_cost

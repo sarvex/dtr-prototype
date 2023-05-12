@@ -4,15 +4,11 @@ def check_item(field, value, acceptable_values, conditions):
     if field in acceptable_values:
         acceptable_set = acceptable_values[field]
         if value not in acceptable_set:
-            return (None,
-                    "Invalid value {} for field {}".format(value, field))
+            return None, f"Invalid value {value} for field {field}"
     if field in conditions:
         condition, name = conditions[field]
         if not condition(value):
-            return (None,
-                    "{} does not meet precondition \"{}\" for field {}".format(value,
-                                                                           field,
-                                                                           name))
+            return None, f'{value} does not meet precondition \"{field}\" for field {name}'
     return (value, "")
 
 def non_negative_cond():
@@ -46,7 +42,7 @@ def check_config(config, defaults=None, acceptable_values=None, conditions=None,
         # for lists, validate each item and turn into a set
         if isinstance(value, list):
             if field not in permit_empty and len(value) == 0:
-                return (None, "Config field {} is not permitted to be empty".format(field))
+                return None, f"Config field {field} is not permitted to be empty"
 
             checked_list = []
             for i in value:

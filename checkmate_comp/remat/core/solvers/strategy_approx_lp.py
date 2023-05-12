@@ -100,7 +100,10 @@ def solve_approx_lp_deterministic_rand_threshold(
         solver_cores=os.cpu_count(),
         n_samples=1,
 ):
-    thresholds = [min(1.0, max(0.0, np.random.normal(0.5, 0.5))) for i in range(n_samples)]
+    thresholds = [
+        min(1.0, max(0.0, np.random.normal(0.5, 0.5)))
+        for _ in range(n_samples)
+    ]
     return solve_approx_lp_deterministic_sweep(g, budget, seed_s, approx, time_limit, write_log_file, print_to_console,
                                                write_model_file, eps_noise, solver_cores, thresholds=thresholds)
 

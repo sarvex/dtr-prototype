@@ -16,41 +16,36 @@ if __name__ == "__main__":
         # model = get_keras_model("MobileNet")
         # g = dfgraph_from_keras(mod=model)
         g = gen_linear_graph(N)
-        scratch_dir = remat_data_dir() / f"scratch_linear" / str(N) / str(B)
+        scratch_dir = remat_data_dir() / "scratch_linear" / str(N) / str(B)
         scratch_dir.mkdir(parents=True, exist_ok=True)
-        data = []
-
         scheduler_result_all = solve_checkpoint_all(g)
         scheduler_result_sqrtn = solve_chen_sqrtn(g, True)
         scheduler_result_griewank = solve_griewank(g, B)
         plot(scheduler_result_all, False, save_file=scratch_dir / "CHECKPOINT_ALL.png")
         plot(scheduler_result_sqrtn, False, save_file=scratch_dir / "CHEN_SQRTN.png")
         plot(scheduler_result_griewank, False, save_file=scratch_dir / "GRIEWANK.png")
-        data.append(
+        data = [
             {
                 "Strategy": str(scheduler_result_all.solve_strategy.value),
                 "Name": "CHECKPOINT_ALL",
                 "CPU": scheduler_result_all.schedule_aux_data.cpu,
                 "Activation RAM": scheduler_result_all.schedule_aux_data.activation_ram,
-            }
-        )
-        data.append(
+            },
             {
                 "Strategy": str(scheduler_result_sqrtn.solve_strategy.value),
                 "Name": "CHEN_SQRTN",
                 "CPU": scheduler_result_sqrtn.schedule_aux_data.cpu,
                 "Activation RAM": scheduler_result_sqrtn.schedule_aux_data.activation_ram,
-            }
-        )
-        data.append(
+            },
             {
-                "Strategy": str(scheduler_result_griewank.solve_strategy.value),
+                "Strategy": str(
+                    scheduler_result_griewank.solve_strategy.value
+                ),
                 "Name": "GRIEWANK",
                 "CPU": scheduler_result_griewank.schedule_aux_data.cpu,
                 "Activation RAM": scheduler_result_griewank.schedule_aux_data.activation_ram,
-            }
-        )
-
+            },
+        ]
         with Timer("ilp") as timer_ilp:
             scheduler_result_ilp = solve_ilp_gurobi(g, B, seed_s=scheduler_result_griewank.schedule_aux_data.S)
             plot(scheduler_result_ilp, False, save_file=scratch_dir / "CHECKMATE_ILP.png")

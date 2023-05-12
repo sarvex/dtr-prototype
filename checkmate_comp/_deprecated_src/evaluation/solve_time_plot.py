@@ -23,9 +23,10 @@ def eval_solve_time(args, log_base):
         logger.info(f"Fetching {model_name} from redis with {key_pattern}")
         results, _keys = cache.query_results(key_pattern)
         total_times = [r.solve_time_s for r in results]
-        for time in total_times:
-            data.append({'Model': model_name, 'Solve time': float(time)})
-
+        data.extend(
+            {'Model': model_name, 'Solve time': float(time)}
+            for time in total_times
+        )
     df = pandas.DataFrame(data)
     sns.boxplot(data=df, x='model', y='solve_time')
     plt.show()

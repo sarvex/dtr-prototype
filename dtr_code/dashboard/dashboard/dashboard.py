@@ -62,9 +62,10 @@ def target_precheck(root_dir, configs_dir, target_name,
     """
     target_conf = attempt_parse_config(configs_dir, target_name)
     if target_conf is None:
-        return ({'success': False,
-                 'message': 'config.json for {} is missing or fails to parse'.format(target_name)},
-                None)
+        return {
+            'success': False,
+            'message': f'config.json for {target_name} is missing or fails to parse',
+        }, None
 
     update_fields = []
     target_info = {}
@@ -82,18 +83,18 @@ def target_precheck(root_dir, configs_dir, target_name,
 
     target_subdir = os.path.join(root_dir, target_name)
     if not os.path.exists(target_subdir):
-        return ({'success': False,
-                 'message': 'Script subdirectory for {} missing'.format(target_name)}, None)
-
-    invalid_scripts = check_present_and_executable(target_subdir, required_scripts)
-    if invalid_scripts:
-        return ({
+        return {
             'success': False,
-            'message': 'Necessary files are missing from {} or not executable: {}'.format(
-                target_subdir,
-                ', '.join(invalid_scripts))
-        },
-                None)
+            'message': f'Script subdirectory for {target_name} missing',
+        }, None
+
+    if invalid_scripts := check_present_and_executable(
+        target_subdir, required_scripts
+    ):
+        return {
+            'success': False,
+            'message': f"Necessary files are missing from {target_subdir} or not executable: {', '.join(invalid_scripts)}",
+        }, None
 
     return ({'success': True, 'message': ''}, target_info)
 
@@ -251,19 +252,21 @@ def analyze_experiment(info, experiments_dir, tmp_data_dir,
 
     # read the analyzed data, append a timestamp field, and copy over to the permanent data dir
     if status['success']:
-        data_exists = check_file_exists(tmp_analysis_dir, 'data.json')
-        if not data_exists:
-            status = {'success': False, 'message': 'No data.json file produced by {}'.format(exp_name)}
-        else:
+        if data_exists := check_file_exists(tmp_analysis_dir, 'data.json'):
             # collect data to dump to data_*.json
             dump_data = {
                 'timestamp'  : date_str,
             }
-            dump_data.update(read_json(tmp_analysis_dir, 'data.json'))
+            dump_data |= read_json(tmp_analysis_dir, 'data.json')
             # fetch time spent on the experiment
             dump_data.update(get_timing_info(info, exp_name))
-            write_json(analyzed_data_dir, 'data_{}.json'.format(date_str), dump_data)
-    
+            write_json(analyzed_data_dir, f'data_{date_str}.json', dump_data)
+
+        else:
+            status = {
+                'success': False,
+                'message': f'No data.json file produced by {exp_name}',
+            }
     info.report_exp_status(exp_name, 'analysis', status)
     return status['success']
 
@@ -307,7 +310,7 @@ def summarize_experiment(info, experiments_dir, exp_name):
     if status['success'] and not summary_valid(exp_summary_dir):
         status = {
             'success': False,
-            'message': 'summary.json produced by {} is invalid'.format(exp_name)
+            'message': f'summary.json produced by {exp_name} is invalid',
         }
     info.report_exp_status(exp_name, 'summary', status)
 
@@ -456,7 +459,7 @@ def main(home_dir, experiments_dir, subsystem_dir):
     subsystem_dir = os.path.abspath(subsystem_dir)
 
     if not check_file_exists(home_dir, 'config.json'):
-        print('Dashboard config (config.json) is missing in {}'.format(home_dir))
+        print(f'Dashboard config (config.json) is missing in {home_dir}')
         return 1
     dash_config = read_json(home_dir, 'config.json')
 
@@ -464,10 +467,16 @@ def main(home_dir, experiments_dir, subsystem_dir):
     for path_field in ['tmp_data_dir', 'setup_dir', 'backup_dir']:
         dash_config[path_field] = os.path.expanduser(dash_config[path_field])
 
-    tmp_data_dir = os.path.join(dash_config['tmp_data_dir'], 'benchmarks_' + time_str)
-    data_archive = os.path.join(dash_config['tmp_data_dir'], 'benchmarks_' + time_str + '_data.tar.gz')
+    tmp_data_dir = os.path.join(
+        dash_config['tmp_data_dir'], f'benchmarks_{time_str}'
+    )
+    data_archive = os.path.join(
+        dash_config['tmp_data_dir'], f'benchmarks_{time_str}_data.tar.gz'
+    )
     setup_dir = dash_config['setup_dir']
-    backup_archive = os.path.join(dash_config['backup_dir'], 'dashboard_' + time_str + '.tar.gz')
+    backup_archive = os.path.join(
+        dash_config['backup_dir'], f'dashboard_{time_str}.tar.gz'
+    )
     idemp_mkdir(tmp_data_dir)
     idemp_mkdir(os.path.dirname(backup_archive))
     idemp_mkdir(setup_dir)

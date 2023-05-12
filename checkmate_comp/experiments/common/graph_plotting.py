@@ -21,15 +21,19 @@ def tensor_plot(g: DFGraph, sched: Schedule, directory, tag=None, format='pdf', 
                 node_name = node_name if node_name is None else f"{node_name} ({str(op.id)})"
             elif g.is_backward_node(op.id):
                 fwd_node = g.backward_to_forward(op.id)
-                node_name = "Grad<{}> {} {}".format(g.node_names.get(fwd_node), fwd_node, op.id)
+                node_name = f"Grad<{g.node_names.get(fwd_node)}> {fwd_node} {op.id}"
             else:
                 raise ValueError("Unknown operation")
             # dot.node("op{}".format(op.id), node_name, shape="diamond")
             # dot.edge("op{}".format(op.id), "reg{}".format(op.out_register))
             dot.node(f"reg{op.out_register}", f"Register {op.out_register} for {node_name}", shape="box")
             for dep_op, dep_reg in op.arg_regs.items():
-                dot.edge("reg{}".format(dep_reg), "reg{}".format(op.out_register),
-                         style="dashed", label=str(g.args[op.id].index(dep_op)))
+                dot.edge(
+                    f"reg{dep_reg}",
+                    f"reg{op.out_register}",
+                    style="dashed",
+                    label=str(g.args[op.id].index(dep_op)),
+                )
     try:
         dot.render(directory=directory, format=format, quiet=quiet)
     except TypeError:
@@ -38,24 +42,24 @@ def tensor_plot(g: DFGraph, sched: Schedule, directory, tag=None, format='pdf', 
 
 def render_dfgraph(g: DFGraph, directory, format='pdf', quiet=True, name=""):
     """Generate Graphviz-formatted edge list for visualization, and write pdf"""
-    dot = Digraph("render_dfgraph" + str(name))
+    dot = Digraph(f"render_dfgraph{str(name)}")
     dot.attr('graph', ratio='compress')  # rankdir='LR',
     for u in g.vfwd:
         with dot.subgraph() as s:
             s.attr(rank='same')
             node_name = g.node_names.get(u)
-            node_name = node_name if node_name is None else "{} ({})".format(node_name, str(u))
+            node_name = node_name if node_name is None else f"{node_name} ({str(u)})"
             s.node(str(u), node_name)
 
             v = g.forward_to_backward(u)
-            node_name = "&nabla;{}".format(g.node_names.get(u, u))
-            node_name = node_name if node_name is None else "{} ({})".format(node_name, str(v))
+            node_name = f"&nabla;{g.node_names.get(u, u)}"
+            node_name = node_name if node_name is None else f"{node_name} ({str(v)})"
             s.node(str(v), node_name, style='filled')
 
     for u in g.v:
         if u not in g.vfwd_map.values() and u not in g.vfwd_map.keys():
             node_name = g.node_names.get(u)
-            node_name = node_name if node_name is None else "{} ({})".format(node_name, str(u))
+            node_name = node_name if node_name is None else f"{node_name} ({str(u)})"
             dot.node(str(u), node_name)
 
     for edge in g.edge_list:

@@ -23,9 +23,20 @@ class RedisCacheKey(NamedTuple):
     def key(self, *extra_args):
         def join(*args, delimiter="/"):
             return delimiter.join(map(lambda s: str(s).strip("/ \t\n\r"), args))
-        return join(self.global_project_version, self.platform, self.model_name, self.model_version,
-                    "bs" + str(self.batch_size), tuple(self.input_shape or []), self.solve_strategy.value,
-                    SolveStrategy.get_version(self.solve_strategy), self.cost_file, self.solver_budget, *extra_args)
+
+        return join(
+            self.global_project_version,
+            self.platform,
+            self.model_name,
+            self.model_version,
+            f"bs{str(self.batch_size)}",
+            tuple(self.input_shape or []),
+            self.solve_strategy.value,
+            SolveStrategy.get_version(self.solve_strategy),
+            self.cost_file,
+            self.solver_budget,
+            *extra_args,
+        )
 
 
 class RedisCache:
@@ -63,8 +74,7 @@ class RedisCache:
 
     def read_result(self, cache_key: RedisCacheKey, ilp_time_limit: int = -1) -> Optional[ScheduledResult]:
         key = cache_key.key(ilp_time_limit)
-        result_bytes = self.redis_conn.get(key)
-        if result_bytes:
+        if result_bytes := self.redis_conn.get(key):
             res = ScheduledResult.loads(result_bytes)
             if res.solve_strategy == SolveStrategy.OPTIMAL_ILP_GC:
                 if res.ilp_aux_data is not None and (res.ilp_aux_data.ilp_time_limit >= ilp_time_limit):

@@ -17,9 +17,7 @@ class Region:
     self.reverse = reverse
   
   def visitor(self, t):
-    if self.reverse:
-      return t.parents
-    return t.children
+    return t.parents if self.reverse else t.children
 
   def absorb(self, frontier_s, tensor_map, tel : 'Telemetry'):
     """

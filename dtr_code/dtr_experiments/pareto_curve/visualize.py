@@ -172,11 +172,10 @@ def render_field(model_name, output_dir, title, filename, x_label, y_label, x_ax
         return (True, 'success')
     except Exception as e:
         raise e
-        return (False, 'Exception encountered while rendering graph: {}'.format(render_exception(e)))
 
 
 def render_fixed(ax, model_name, output_dir, x_axis, dtr_entries, baseline_data, failed_trials, batch_size=None, confidence=None):
-    if not (dtr_entries or failed_trials):
+    if not dtr_entries and not failed_trials:
         return (True, 'nothing to render')
     filename = prepare_out_file(output_dir, f'{NAME_DICT.get(model_name, model_name)}-fixed-gpu-time.png')
     try:
@@ -213,14 +212,10 @@ def render_fixed(ax, model_name, output_dir, x_axis, dtr_entries, baseline_data,
                 else:
                     filtered_entries.append(datum)
 
-        dtr_entries = filtered_entries
-
         if failed_trials:
             for x in failed_trials:
                 ax.axvline(x=ind_index[x], color='red', linestyle='dashed', label='OOM')
-        new_ind = []
-        for x in x_axis:
-            new_ind.append(ind_index[x])
+        new_ind = [ind_index[x] for x in x_axis]
         new_ind.append(ind[-1])
         ind = np.array(new_ind)
         ax.grid(True, axis='y')
@@ -228,7 +223,7 @@ def render_fixed(ax, model_name, output_dir, x_axis, dtr_entries, baseline_data,
 
         for x in failed_trials:
             ax.bar(ind_index[x], 0)
-        if dtr_entries:
+        if dtr_entries := filtered_entries:
             # lin, = ax.plot(x_axis, dtr_entries, color=COLOR_SCHEME.get(model_name, 'black'), linewidth=4)
             # mk,  = ax.plot(x_axis, dtr_entries, label=NAME_DICT.get(model_name, model_name),
             #               linewidth=4, marker=MARKER_SCHEME.get(model_name, '+'), ms=12,
@@ -257,13 +252,7 @@ def render_fixed(ax, model_name, output_dir, x_axis, dtr_entries, baseline_data,
                 ax.bar([ind[-1]], 0, label='Unmodified PyTorch', color='blue')
                 ax.axvline(ind[-1], color='red', linestyle='dashed', label='OOM')
 
-            if confidence and False:
-                render_errorbars(ax, x_axis, dtr_entries, confidence)
-
             ax.invert_xaxis()
-            # ax.legend([(lin, mk)], ['merged'])
-
-                # plt.legend(
         #         bbox_to_anchor=(0.5,0.01),
         #         loc='lower center',
         #         bbox_transform=fig.transFigure,
@@ -276,17 +265,16 @@ def render_fixed(ax, model_name, output_dir, x_axis, dtr_entries, baseline_data,
         return (True, 'success')
     except Exception as e:
         raise e
-        return (False, render_exception(e))
 
 
 def render_time_comparison(model, batch_size, exp_kind, dtr_data, baseline_data, output_dir, plt_ax=None):
     # filename : model-batch_size-exp_kind-[time|gpu_time|mem]
     filename_template= f'{str(datetime.datetime.now()).replace(" ", "-")}-{model}-{batch_size}-{exp_kind}-' + '{}' + '.png'
-    if exp_kind == 'ratio':
-        comp = lambda k: k['ratio']
-    elif exp_kind == 'fixed':
+    if exp_kind == 'fixed':
         comp = lambda k: k['memory_budget']
 
+    elif exp_kind == 'ratio':
+        comp = lambda k: k['ratio']
     sorted_entries = sorted(dtr_data, key=comp)
     dtr_entries = list(filter(lambda datum: not datum['error'], sorted_entries))
     failed_trials = list(map(comp, filter(lambda datum: datum['error'], sorted_entries)))
@@ -297,8 +285,6 @@ def render_time_comparison(model, batch_size, exp_kind, dtr_data, baseline_data,
         'gpu_time' : f'{model} GPU Time Comparison',
     }
 
-    x_label = 'Memory Budget (Ratio)' if exp_kind == 'ratio' else 'Memory Budget (MB)'
-    field = 'gpu_time'
     field_conf = 'gpu_conf'
 
     if exp_kind == 'ratio':
@@ -312,11 +298,23 @@ def render_time_comparison(model, batch_size, exp_kind, dtr_data, baseline_data,
             x_axis.append(x)
             slow_down.append(y)
             confidence.append([conf[0] - y, conf[1] - y])
-        filename = filename_template.format(field + '-slowdown')
-        success, msg = render_field(model, output_dir, get_title[field] + f' \n (batch size: {batch_size})',
-                                    filename, x_label, r'Overhead Slow Down (times)',
-                                    x_axis, [], slow_down, [],
-                                    confidence=confidence, suptitle=f'Input Size: {batch_size}')
+        field = 'gpu_time'
+        filename = filename_template.format(f'{field}-slowdown')
+        x_label = 'Memory Budget (Ratio)' if exp_kind == 'ratio' else 'Memory Budget (MB)'
+        success, msg = render_field(
+            model,
+            output_dir,
+            f'{get_title[field]} \n (batch size: {batch_size})',
+            filename,
+            x_label,
+            r'Overhead Slow Down (times)',
+            x_axis,
+            [],
+            slow_down,
+            [],
+            confidence=confidence,
+            suptitle=f'Input Size: {batch_size}',
+        )
     elif exp_kind == 'fixed':
         data = list(map(lambda x: {field : x[field]
                                     for field in ['cpu_time'] + timed_keys }, dtr_entries))
@@ -329,10 +327,7 @@ def render_time_comparison(model, batch_size, exp_kind, dtr_data, baseline_data,
     else:
         raise Exception(f'{exp_kind} is not a valid kind')
 
-    if not success:
-        return (False, msg)
-
-    return (True, 'success')
+    return (False, msg) if not success else (True, 'success')
 
 def traverse_field(metadata, kind, func, output_dir):
     """
@@ -446,7 +441,7 @@ def render_throughput_breakdown(metadata, output_dir):
             locs = ind + width * (i + 1)
             for loc in locs:
                 x_tick = f'{round(budget * 1e-9, 1)}\nGiB'
-                if loc in x_ticks_loc.keys():
+                if loc in x_ticks_loc:
                     x_tick += f'\n{x_ticks_loc[loc]}'
                 x_ticks_loc[loc] = x_tick
 
@@ -458,7 +453,7 @@ def render_throughput_breakdown(metadata, output_dir):
             gathered_data['dispatch_overhead'] = []
             for e in datum:
                 time_acc = 0
-                for key in gathered_data.keys():
+                for key in gathered_data:
                     if key != 'dispatch_overhead':
                         if e is None:
                             gathered_data[key].append(0)
@@ -495,7 +490,7 @@ def render_throughput_breakdown(metadata, output_dir):
         plt.savefig(filename, bbox_inches='tight')
 
     try:
-        for model in throughput_metadata.keys():
+        for model in throughput_metadata:
             plot_model(model)
     except Exception as e:
         return False, render_exception(e)
@@ -505,7 +500,7 @@ def render_throughput_breakdown(metadata, output_dir):
 def flatten(xs):
     result = []
     for e in xs:
-        if isinstance(e, list) or isinstance(e, tuple) or isinstance(e, np.ndarray):
+        if isinstance(e, (list, tuple, np.ndarray)):
             result = result + flatten(e)
         else:
             result.append(e)
@@ -524,7 +519,7 @@ def render_graph(config, data, output_dir):
         plt.ylabel(r'Overhead Slow Down ($\times$)', fontsize=15, labelpad=10)
         plt.title('GPU Time Comparisons', fontsize=18)
         plt.grid(True)
-        filename = prepare_out_file(output_dir, f'combined-comparison-ratio.png')
+        filename = prepare_out_file(output_dir, 'combined-comparison-ratio.png')
 
         metadata = {}
         for model in config['models']:
@@ -603,12 +598,9 @@ def render_graph(config, data, output_dir):
             return (False, msg)
 
         success, msg = render_throughput_breakdown(metadata, output_dir)
-        if not success:
-            return False, msg
-        return (True, 'success')
+        return (False, msg) if not success else (True, 'success')
     except Exception as e:
         raise e
-        return (False, 'Exception encountered while rendering graphs: {}'.format(render_exception(e)))
 
 def main(data_dir, config_dir, output_dir):
     try:
@@ -622,7 +614,9 @@ def main(data_dir, config_dir, output_dir):
         success, msg = render_graph(config, most_recent, output_dir)
         write_status(output_dir, success, msg)
     except Exception as e:
-        write_status(output_dir, False, 'Exception encountered: ' + render_exception(e))
+        write_status(
+            output_dir, False, f'Exception encountered: {render_exception(e)}'
+        )
         return 1
     finally:
         plt.close()

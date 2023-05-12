@@ -16,8 +16,7 @@ def parse_args():
     parser.add_argument("--num-layers", "-n", default=16, type=int)
     parser.add_argument("--imposed-schedule", default=ImposedSchedule.FULL_SCHEDULE,
                         type=ImposedSchedule, choices=list(ImposedSchedule))
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
@@ -34,8 +33,12 @@ if __name__ == "__main__":
     # Compute integrality gap for each budget
     for B in reversed(range(4, N + 3)):  # Try several budgets
         g = gen_linear_graph(N)
-        scratch_dir = remat_data_dir() / f"scratch_integrality_gap_linear" / f"{N}_layers" / str(
-            IMPOSED_SCHEDULE) / f"{B}_budget"
+        scratch_dir = (
+            remat_data_dir()
+            / "scratch_integrality_gap_linear"
+            / f"{N}_layers"
+            / str(IMPOSED_SCHEDULE)
+        ) / f"{B}_budget"
         scratch_dir.mkdir(parents=True, exist_ok=True)
         data = []
 

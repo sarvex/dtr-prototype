@@ -13,7 +13,7 @@ from slack.errors import SlackApiError
 from common import render_exception
 
 def generate_ping_list(user_ids):
-    return ', '.join(['<@{}>'.format(user_id) for user_id in user_ids])
+    return ', '.join([f'<@{user_id}>' for user_id in user_ids])
 
 def new_client(config):
     try:
@@ -63,8 +63,15 @@ def post_message(client, channel, message, **kargs):
     try:
         resp = []
         if isinstance(channel, list):
-            for ch in channel:
-                resp.append(client.chat_postMessage(channel=ch, text=message.get('text', '*No Message Content*'), attachments=message.get('attachments', ''), **kargs))
+            resp.extend(
+                client.chat_postMessage(
+                    channel=ch,
+                    text=message.get('text', '*No Message Content*'),
+                    attachments=message.get('attachments', ''),
+                    **kargs
+                )
+                for ch in channel
+            )
         else:
             resp.append(client.chat_postMessage(channel=channel, text=message.get('text', '*No Message Content*'), attachments=message.get('attachments', ''), **kargs))
         return (True, resp, 'success')

@@ -46,5 +46,4 @@ def parse_args():
     cuda_parser.add_argument('--no-cuda', dest='cuda', action='store_false')
     parser.set_defaults(cuda=True)
 
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()

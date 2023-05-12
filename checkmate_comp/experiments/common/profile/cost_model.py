@@ -65,7 +65,7 @@ class CostModel:
             slope, intercept, rvalue, pvalue, stderr = fit
             self.fits.append(fit)
 
-            if intercept / 1000 >= 100:
+            if intercept >= 100000:
                 # Greater than 100 ms overhead for the layer
                 self.logger.warn(f"Layer {layer} has overhead (bs=0 cost) of {intercept / 1000} ms. "
                                  f"r={rvalue}, p={pvalue}, stderr={stderr}, for cost model {slope}*bs+{intercept}")
@@ -95,7 +95,7 @@ class CostModel:
             costs = self.load_costs(cost_file)
             if costs is not None:
                 self.logger.info(f"Using measured costs {cost_file} for batch size {batch_size}")
-                self.logger.info(f"Quantizing costs")
+                self.logger.info("Quantizing costs")
                 return self.quantize_costs(costs)
 
         self.logger.info(f"Using linear cost model for batch size {batch_size}")
@@ -110,12 +110,8 @@ class CostModel:
                 cost_list = np.load(cost_file)
                 return cost_list
             self.logger.error(f"Error loading cost file {cost_file}: %s", exc)
-            if withdevs:
-                return None, None
-            return None
-        if withdevs:
-            return cost_list, stds
-        return cost_list
+            return (None, None) if withdevs else None
+        return (cost_list, stds) if withdevs else cost_list
 
     def plot_costs(self):
         self.logger.info("Plotting cost model")

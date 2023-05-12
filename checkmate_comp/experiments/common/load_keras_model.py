@@ -10,7 +10,7 @@ KERAS_APPLICATION_MODEL_NAMES = ['InceptionV3', 'VGG16', 'VGG19', 'ResNet50',
                                  'ResNet101', 'ResNet152', 'ResNet50V2', 'ResNet101V2',
                                  'ResNet152V2']
 SEGMENTATION_MODEL_NAMES = list(keras_segmentation.models.model_from_name.keys())
-LINEAR_MODEL_NAMES = ["linear" + str(i) for i in range(32)]
+LINEAR_MODEL_NAMES = [f"linear{str(i)}" for i in range(32)]
 MODEL_NAMES = KERAS_APPLICATION_MODEL_NAMES + SEGMENTATION_MODEL_NAMES + ["test"] + LINEAR_MODEL_NAMES
 CHAIN_GRAPH_MODELS = ["VGG16", "VGG19", "MobileNet"] + LINEAR_MODEL_NAMES
 NUM_SEGMENTATION_CLASSES = 19  # Cityscapes has 19 evaluation classes
@@ -20,9 +20,7 @@ def pretty_model_name(model_name: str):
     mapping = {
         "vgg_unet": "U-Net with VGG16",
     }
-    if model_name in mapping:
-        return mapping[model_name]
-    return model_name
+    return mapping.get(model_name, model_name)
 
 
 def simple_model():
@@ -40,7 +38,9 @@ def linear_model(i):
     input = tf.keras.Input(shape=(224, 224, 3))
     x = input
     for i in range(i):
-        x = tf.keras.layers.Conv2D(64, (3, 3), activation=None, use_bias=False, name='conv' + str(i))(x)
+        x = tf.keras.layers.Conv2D(
+            64, (3, 3), activation=None, use_bias=False, name=f'conv{str(i)}'
+        )(x)
     d = tf.keras.layers.GlobalAveragePooling2D(name='flatten')(x)
     predictions = tf.keras.layers.Dense(1000, activation='softmax', name='predictions')(d)
     return tf.keras.Model(inputs=input, outputs=predictions)
@@ -53,7 +53,7 @@ def get_keras_model(model_name: str, input_shape: Optional[List[int]] = None):
         i = int(re.search(r'\d+$', model_name).group())
         model = linear_model(i)
     elif model_name in KERAS_APPLICATION_MODEL_NAMES:
-        model = eval("tf.keras.applications.{}".format(model_name))
+        model = eval(f"tf.keras.applications.{model_name}")
         model = model(input_shape=input_shape)
     elif model_name in SEGMENTATION_MODEL_NAMES:
         model = keras_segmentation.models.model_from_name[model_name]
@@ -63,7 +63,7 @@ def get_keras_model(model_name: str, input_shape: Optional[List[int]] = None):
         else:
             model = model(n_classes=NUM_SEGMENTATION_CLASSES)
     else:
-        raise NotImplementedError("Model {} not available".format(model_name))
+        raise NotImplementedError(f"Model {model_name} not available")
 
     return model
 

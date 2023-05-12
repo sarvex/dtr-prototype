@@ -9,18 +9,21 @@ from common import (check_file_exists, read_json,
                     write_json, read_config)
 
 def _check_stage_status(target_status_dir, stage_name):
-    filename = '{}.json'.format(stage_name)
+    filename = f'{stage_name}.json'
     if not check_file_exists(target_status_dir, filename):
-        return {'success': False, 'message': '{} stage status missing'.format(stage_name)}
+        return {'success': False, 'message': f'{stage_name} stage status missing'}
 
     try:
         return read_json(target_status_dir, filename)
     except:
-        return {'success': False, 'message': 'Failed to parse {} stage status'.format(stage_name)}
+        return {
+            'success': False,
+            'message': f'Failed to parse {stage_name} stage status',
+        }
 
 
 def _report_stage_status(target_status_dir, stage_name, status):
-    filename = '{}.json'.format(stage_name)
+    filename = f'{stage_name}.json'
     write_json(target_status_dir, filename, status)
 
 

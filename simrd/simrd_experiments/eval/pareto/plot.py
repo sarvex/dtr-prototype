@@ -32,16 +32,12 @@ def get_pareto_data(result_file, overheads=True):
     succ_ratios.append(res['ratio'])
     if res['num_trials'] > 1:
       multi_trial = True
-    if overheads:
-      rstr = 'overhead'
-    else:  # accesses
-      rstr = 'heuristic_access_count'
-    
+    rstr = 'overhead' if overheads else 'heuristic_access_count'
     mean = sum(res[rstr]) / res['num_trials']
     vmin = min(res[rstr])
     vmax = max(res[rstr])
     if res['num_trials'] > 1:
-      stddev = math.sqrt(sum([(v - mean) ** 2 for v in res[rstr]]) / res['num_trials'])
+      stddev = math.sqrt(sum((v - mean) ** 2 for v in res[rstr]) / res['num_trials'])
     else:
       stddev = 0
     val = {'mean': mean, 'min': vmin, 'max': vmax, 'stddev': stddev}
@@ -54,15 +50,12 @@ def get_pareto_data(result_file, overheads=True):
 
 def plot_pareto(result_file, finalize=False, ax=None,
                 title=None, desc=None, lps=None):
-  if ax is not None:
-    fax = ax
-  else:
-    fax = plt.gca()
+  fax = ax if ax is not None else plt.gca()
   results, ratios, succ_ratios, overheads, last_ratio, fail_type, multi_trial \
     = get_pareto_data(result_file)
-  heuristic = results['config']['heuristic']
-
   if lps is None:
+    heuristic = results['config']['heuristic']
+
     lps = LinePlotSettings.from_heuristic(HEURISTICS[heuristic]())
 
   if title is None:
@@ -105,15 +98,12 @@ def plot_pareto(result_file, finalize=False, ax=None,
 
 def plot_accesses(result_file, finalize=False, ax=None,
                   title=None, lps=None):
-  if ax is not None:
-    fax = ax
-  else:
-    fax = plt.gca()
+  fax = ax if ax is not None else plt.gca()
   results, ratios, succ_ratios, accesses, last_ratio, fail_type, multi_trial = \
     get_pareto_data(result_file, overheads=False)
-  heuristic = results['config']['heuristic']
-
   if lps is None:
+    heuristic = results['config']['heuristic']
+
     lps = LinePlotSettings.from_heuristic(HEURISTICS[heuristic]())
 
   if title is None:
@@ -136,7 +126,7 @@ def plot_accesses(result_file, finalize=False, ax=None,
     fax.set_yscale('log')
 
 def plot_heuristics_f(base_dir, heuristics=None, ax=None):
-  result_files = glob.glob(base_dir + '/' + '*.json')
+  result_files = glob.glob(f'{base_dir}/*.json')
   if heuristics is not None:
     h_strs = [type(h).__name__ for h in heuristics]
     result_files = [rf for rf in result_files if get_result_heuristic_str(rf) in h_strs]
@@ -146,7 +136,7 @@ def plot_heuristics_f(base_dir, heuristics=None, ax=None):
 
 def plot_banishing_f(base_dir, heuristics=None, ax=None):
   assert heuristics is None
-  result_files = glob.glob(base_dir + '/' + '*.json')
+  result_files = glob.glob(f'{base_dir}/*.json')
   assert len(result_files) == 3
   for i, result_path in enumerate(result_files):
     res = get_pareto_results(result_path)
@@ -160,7 +150,7 @@ def plot_banishing_f(base_dir, heuristics=None, ax=None):
     plot_pareto(result_path, finalize=(i == 1), ax=ax, lps=lps)
 
 def plot_accesses_f(base_dir, heuristics=None, ax=None):
-  result_files = glob.glob(base_dir + '/' + '*.json')
+  result_files = glob.glob(f'{base_dir}/*.json')
   if heuristics is not None:
     h_strs = [type(h).__name__ for h in heuristics]
     result_files = [rf for rf in result_files if get_result_heuristic_str(rf) in h_strs]
@@ -192,7 +182,7 @@ def plot_paretos_paper(base_dirs, heuristics=None, plot_f=plot_heuristics_f, leg
   plt.style.use('seaborn-paper')
   fig, ax = plt.subplots(2, 4, sharex='all', sharey='all')
   i, j = 0, 0
-  for k, base_dir in enumerate(base_dirs):
+  for base_dir in base_dirs:
     plot_f(base_dir, heuristics=heuristics, ax=ax[i, j])
     # https://stackoverflow.com/questions/20337664/cleanest-way-to-hide-every-nth-tick-label-in-matplotlib-colorbar
     [l.set_visible(False) for (i,l) in enumerate(ax[i,j].xaxis.get_ticklabels()) if i % 2 != 0]
@@ -209,7 +199,7 @@ def plot_paretos_paper(base_dirs, heuristics=None, plot_f=plot_heuristics_f, leg
   plt.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
   plt.xlabel('Memory Ratio', fontsize=14, labelpad=10, fontweight='bold')
   plt.ylabel(r'Compute Overhead ($\times$)', fontsize=14, labelpad=22, fontweight='bold')
-  
+
   # make legend
   if not legend:
     handles, labels = get_heuristics_handles_labels(heuristics)
@@ -234,7 +224,7 @@ def plot_pareto_paper(base_dirs=None, output_dir=None, plot_file=None, num_model
   if plot_file is None:
     plot_file = 'data/pareto.pdf'
   print('plotting pareto experiment...')
-  print('  directories: {}'.format(base_dirs))
+  print(f'  directories: {base_dirs}')
   plot_paretos_paper(base_dirs, heuristics=PAPER_PARETO_HEURISTICS)
   plt.savefig(plot_file, dpi=300)
   plt.clf()
@@ -247,12 +237,12 @@ def plot_ablation_paper(base_dirs=None, output_dir=None, plot_file=None, num_mod
   if plot_file is None:
     plot_file = 'data/ablation_{}.pdf'
   print('plotting ablation experiment...')
-  print('  directories: {}'.format(base_dirs))
+  print(f'  directories: {base_dirs}')
   heuristic_groups = [
-    PAPER_ABLATION_HEURISTICS[0:4],
-    PAPER_ABLATION_HEURISTICS[4:8],
-    PAPER_ABLATION_HEURISTICS[8:12],
-    PAPER_ABLATION_HEURISTICS[12:16]
+      PAPER_ABLATION_HEURISTICS[:4],
+      PAPER_ABLATION_HEURISTICS[4:8],
+      PAPER_ABLATION_HEURISTICS[8:12],
+      PAPER_ABLATION_HEURISTICS[12:16],
   ]
   group_names = [
     'full_e', 'eqclass', 'local', 'none'
@@ -270,7 +260,7 @@ def plot_banishing_paper(base_dirs=None, output_dir=None, plot_file=None, num_mo
   if plot_file is None:
     plot_file = 'data/banishing.pdf'
   print('plotting banishing experiment...')
-  print('  directories: {}'.format(base_dirs))
+  print(f'  directories: {base_dirs}')
   plot_paretos_paper(base_dirs, plot_f=plot_banishing_f, legend=get_banishing_handles_labels())
   plt.savefig(plot_file, dpi=300)
   plt.clf()
@@ -283,11 +273,11 @@ def plot_accesses_paper(base_dirs=None, output_dir=None, plot_file=None, num_mod
   if plot_file is None:
     plot_file = 'data/accesses.pdf'
   print('plotting accesses experiment...')
-  print('  directories: {}'.format(base_dirs))
+  print(f'  directories: {base_dirs}')
   plt.style.use('seaborn-paper')
   fig, ax = plt.subplots(2, 4, sharex='none', sharey='none')
   i, j = 0, 0
-  for k, base_dir in enumerate(base_dirs):
+  for base_dir in base_dirs:
     plot_accesses_f(base_dir, heuristics=PAPER_ACCESSES_HEURISTICS, ax=ax[i, j])
     # https://stackoverflow.com/questions/20337664/cleanest-way-to-hide-every-nth-tick-label-in-matplotlib-colorbar
     [l.set_visible(False) for (i,l) in enumerate(ax[i,j].xaxis.get_ticklabels()) if i % 2 != 0]

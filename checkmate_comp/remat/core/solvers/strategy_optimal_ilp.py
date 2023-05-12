@@ -40,7 +40,7 @@ class ILPSolver:
 
         self.init_constraints = []  # used for seeding the model
 
-        self.m = Model("checkpointmip_gc_{}_{}".format(self.g.size, self.budget))
+        self.m = Model(f"checkpointmip_gc_{self.g.size}_{self.budget}")
         if gurobi_params is not None:
             for k, v in gurobi_params.items():
                 setattr(self.m.Params, k, v)
@@ -121,9 +121,7 @@ class ILPSolver:
 
             def _max_num_hazards(t, i, k):
                 num_uses_after_k = sum(1 for j in self.g.successors(i) if j > k)
-                if t + 1 < T:
-                    return 2 + num_uses_after_k
-                return 1 + num_uses_after_k
+                return 2 + num_uses_after_k if t + 1 < T else 1 + num_uses_after_k
 
             with Timer("Constraint: upper bound for 1 - Free_E",
                        extra_data={'T': str(T), 'budget': str(budget)}):
